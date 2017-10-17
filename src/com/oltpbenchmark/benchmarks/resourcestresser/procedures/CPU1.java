@@ -23,45 +23,92 @@ import java.sql.SQLException;
 
 import com.oltpbenchmark.api.Procedure;
 import com.oltpbenchmark.api.SQLStmt;
-import com.oltpbenchmark.benchmarks.resourcestresser.ResourceStresserConstants;
 import com.oltpbenchmark.benchmarks.resourcestresser.ResourceStresserWorker;
 
 public class CPU1 extends Procedure {
 
-    public final SQLStmt cpuSelect;
-    { 
-        String complexClause = "'passwd'";
-        for (int i = 1; i <= ResourceStresserWorker.CPU1_nestedLevel; ++i) {
-            complexClause = "md5(concat(" + complexClause +",?))";
-        } // FOR
-        cpuSelect = new SQLStmt(
-            "SELECT count(*) FROM (SELECT " + complexClause + 
-            " FROM " + ResourceStresserConstants.TABLENAME_CPUTABLE +
-            " WHERE empid >= 0 AND empid < 100) AS T1"
-        );
-    }
+//    public final SQLStmt cpuSelect;
+//    { 
+//        String complexClause = "'passwd'";
+//        for (int i = 1; i <= ResourceStresserWorker.CPU1_nestedLevel; ++i) {
+//            complexClause = "md5(concat(" + complexClause +",?))";
+//        } // FOR
+//        cpuSelect = new SQLStmt(
+//            "SELECT count(*) FROM (SELECT " + complexClause + 
+//            " FROM " + ResourceStresserConstants.TABLENAME_CPUTABLE +
+//            " WHERE empid >= 0 AND empid < 100) AS T1"
+//        );
+//    }
+	
+	public final SQLStmt cpuSelect = new SQLStmt(
+			"WITH RECURSIVE " +
+            "x(i) " +
+            "AS ( " +
+                "VALUES(0) " +
+            "UNION ALL " +
+                "SELECT i + 1 FROM x WHERE i < " + ResourceStresserWorker.CPU1_recursionLevel + " " +
+            "), " +
+            "Z(Ix, Iy, Cx, Cy, X, Y, I) " +
+            "AS ( " +
+                "SELECT Ix, Iy, X::FLOAT, Y::FLOAT, X::FLOAT, Y::FLOAT, 0 " +
+                "FROM " +
+                    "(SELECT -2.2 + 0.031 * i, i FROM x) AS xgen(x,ix) " +
+                "CROSS JOIN " +
+                    "(SELECT -1.5 + 0.031 * i, i FROM x) AS ygen(y,iy) " +
+                "UNION ALL " +
+                "SELECT Ix, Iy, Cx, Cy, X * X - Y * Y + Cx AS X, Y * X * 2 + Cy, I + 1 " +
+                "FROM Z " +
+                "WHERE X * X + Y * Y < 16.0 " +
+                "AND I < 27 " +
+            "), " +
+            "Zt (Ix, Iy, I) AS ( " +
+                "SELECT Ix, Iy, MAX(I) AS I " +
+                "FROM Z " +
+                "GROUP BY Iy, Ix " +
+                "ORDER BY Iy, Ix " +
+            ") " +
+            "SELECT MAX(Ix), MAX(Iy), MAX(I) " +
+            "FROM Zt"
+//            "SELECT array_to_string( " +
+//                "array_agg( " +
+//            	    "SUBSTRING( " +
+//            	        "' .,,,-----++++%%%%@@@@#### ', " +
+//            	        "GREATEST(I,1), " +
+//            	        "1 " +
+//            	    ") " +
+//            	"),'' " +
+//            ") " +
+//            "FROM Zt " +
+//            "GROUP BY Iy " +
+//            "ORDER BY Iy "
+		);
     
     public void run(Connection conn, int howManyPerTransaction, int sleepLength,
     		int nestedLevel) throws SQLException {
         PreparedStatement stmt = this.getPreparedStatement(conn, cpuSelect);
 
         for (int tranIdx = 0; tranIdx < howManyPerTransaction; ++tranIdx) {
-            double randNoise = ResourceStresserWorker.gen.nextDouble();
+        	ResultSet rs = stmt.executeQuery();
+        	rs.close();
+        }
 
-            for (int i = 1; i <= nestedLevel; ++i) {
-                stmt.setString(i, Double.toString(randNoise));
-            } // FOR
-
-            // TODO: Is this the right place to sleep?  With rs open???
-            ResultSet rs = stmt.executeQuery();
-            try {
-                Thread.sleep(sleepLength);
-            } catch (InterruptedException e) {
-                rs.close();
-                throw new SQLException("Unexpected interupt while sleeping!");
-            }
-            rs.close();
-        } // FOR
+//        for (int tranIdx = 0; tranIdx < howManyPerTransaction; ++tranIdx) {
+//            double randNoise = ResourceStresserWorker.gen.nextDouble();
+//
+//            for (int i = 1; i <= nestedLevel; ++i) {
+//                stmt.setString(i, Double.toString(randNoise));
+//            } // FOR
+//
+//            // TODO: Is this the right place to sleep?  With rs open???
+//            ResultSet rs = stmt.executeQuery();
+//            try {
+//                Thread.sleep(sleepLength);
+//            } catch (InterruptedException e) {
+//                rs.close();
+//                throw new SQLException("Unexpected interupt while sleeping!");
+//            }
+//            rs.close();
+//        } // FOR
     }
     
 }

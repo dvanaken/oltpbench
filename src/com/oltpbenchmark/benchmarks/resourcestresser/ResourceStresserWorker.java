@@ -47,9 +47,10 @@ public class ResourceStresserWorker extends Worker<ResourceStresserBenchmark> {
     public static final int IO2_howManyUpdatePerTransaction = 50;
     public static final boolean IO2_makeSureWorketSetFitsInMemory = true;
 
-    public static final int CPU1_howManyPerTrasaction = 10;
+    public static final int CPU1_howManyPerTrasaction = 1;
     public static final int CPU1_sleep = 1;
     public static final int CPU1_nestedLevel = 5;
+    public static final int CPU1_recursionLevel = 1001;
 
     public static final int CPU2_howManyPerTrasaction = 5;
     public static final int CPU2_sleep = 2;
