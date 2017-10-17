@@ -23,20 +23,46 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
 import com.oltpbenchmark.WorkloadConfiguration;
 import com.oltpbenchmark.api.BenchmarkModule;
 import com.oltpbenchmark.api.Loader;
-import com.oltpbenchmark.api.Procedure;
 import com.oltpbenchmark.api.Worker;
 import com.oltpbenchmark.benchmarks.resourcestresser.procedures.CPU1;
 
 public class ResourceStresserBenchmark extends BenchmarkModule {
-	private static final Logger LOG = Logger.getLogger(Procedure.class);
+	private static final Logger LOG = Logger.getLogger(ResourceStresserBenchmark.class);
+
+    private static final int CPU1_DEFAULT_OPS_PER_TXN = 1;
+    private static final int CPU1_DEFAULT_RECURSION_LEVEL = 101;
+
+	private final int cpu1OpsPerTxn;
+	private final int cpu1RecursionLevel;
 
 	public ResourceStresserBenchmark(WorkloadConfiguration workConf) {
 		super("resourcestresser", workConf, true);
+
+		XMLConfiguration xml = workConf.getXmlConfig();
+		if (xml != null && xml.containsKey("cpu1OpsPerTxn")) {
+		    this.cpu1OpsPerTxn = xml.getInt("cpu1OpsPerTxn");
+        } else {
+        	this.cpu1OpsPerTxn = CPU1_DEFAULT_OPS_PER_TXN;
+        }
+		if (xml != null && xml.containsKey("cpu1RecursionLevel")) {
+		    this.cpu1RecursionLevel = xml.getInt("cpu1RecursionLevel");
+        } else {
+        	this.cpu1RecursionLevel = CPU1_DEFAULT_RECURSION_LEVEL;
+        }
+	}
+
+	public int getCpu1OpsPerTxn() {
+		return this.cpu1OpsPerTxn;
+	}
+
+	public int getCpu1RecursionLevel() {
+		return this.cpu1RecursionLevel;
 	}
 	
 	@Override
@@ -46,10 +72,11 @@ public class ResourceStresserBenchmark extends BenchmarkModule {
 	
 	@Override
 	protected List<Worker<? extends BenchmarkModule>> makeWorkersImpl(boolean verbose) throws IOException {
+		LOG.info("Setting CPU1 ops/txn to " + this.cpu1OpsPerTxn + ".");
+		LOG.info("Setting CPU1 recursion level to " + this.cpu1RecursionLevel + ".");
 		List<Worker<? extends BenchmarkModule>> workers = new ArrayList<Worker<? extends BenchmarkModule>>();
 		int numKeys = (int) (workConf.getScaleFactor() * ResourceStresserConstants.RECORD_COUNT);
 		int keyRange = numKeys / workConf.getTerminals();
-		LOG.warn("numkeys=" + numKeys + ", keyRange=" + keyRange);
 		// TODO: check ranges
 		for (int i = 0; i < workConf.getTerminals(); ++i) {
 			workers.add(new ResourceStresserWorker(this, i, numKeys, keyRange));

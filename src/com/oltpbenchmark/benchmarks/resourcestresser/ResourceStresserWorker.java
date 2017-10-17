@@ -47,11 +47,6 @@ public class ResourceStresserWorker extends Worker<ResourceStresserBenchmark> {
     public static final int IO2_howManyUpdatePerTransaction = 50;
     public static final boolean IO2_makeSureWorketSetFitsInMemory = true;
 
-    public static final int CPU1_howManyPerTrasaction = 1;
-    public static final int CPU1_sleep = 1;
-    public static final int CPU1_nestedLevel = 5;
-    public static final int CPU1_recursionLevel = 501;
-
     public static final int CPU2_howManyPerTrasaction = 5;
     public static final int CPU2_sleep = 2;
     public static final int CPU2_nestedLevel = 5;
@@ -70,8 +65,9 @@ public class ResourceStresserWorker extends Worker<ResourceStresserBenchmark> {
 
     @Override
     protected TransactionStatus executeWork(TransactionType nextTrans) throws UserAbortException, SQLException {
+    	ResourceStresserBenchmark benchmarkModule = this.getBenchmarkModule();
         if (nextTrans.getProcedureClass().equals(CPU1.class)) {
-            cpu1Transaction(CPU1_howManyPerTrasaction, CPU1_sleep, CPU1_nestedLevel);
+            cpu1Transaction(benchmarkModule.getCpu1OpsPerTxn(), benchmarkModule.getCpu1RecursionLevel());
         } else if (nextTrans.getProcedureClass().equals(CPU2.class)) {
             cpu2Transaction(CPU2_howManyPerTrasaction, CPU2_sleep, CPU2_nestedLevel);
         } else if (nextTrans.getProcedureClass().equals(IO1.class)) {
@@ -111,10 +107,10 @@ public class ResourceStresserWorker extends Worker<ResourceStresserBenchmark> {
         proc.run(conn, this.getId(), howManyUpdatesPerTransaction, makeSureWorkerSetFitsInMemory, keyRange);
     }
 
-    private void cpu1Transaction(int howManyPerTransaction, int sleepLength, int nestedLevel) throws SQLException {
+    private void cpu1Transaction(int opsPerTransaction, int recursionLevel) throws SQLException {
         CPU1 proc = this.getProcedure(CPU1.class);
         assert (proc != null);
-        proc.run(conn, howManyPerTransaction, sleepLength, nestedLevel);
+        proc.run(conn, opsPerTransaction, recursionLevel);
     }
 
     private void cpu2Transaction(int howManyPerTransaction, int sleepLength, int nestedLevel) throws SQLException {
