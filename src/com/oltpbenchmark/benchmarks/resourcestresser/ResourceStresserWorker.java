@@ -67,9 +67,9 @@ public class ResourceStresserWorker extends Worker<ResourceStresserBenchmark> {
     protected TransactionStatus executeWork(TransactionType nextTrans) throws UserAbortException, SQLException {
     	ResourceStresserBenchmark benchmarkModule = this.getBenchmarkModule();
         if (nextTrans.getProcedureClass().equals(CPU1.class)) {
-            cpu1Transaction(benchmarkModule.getCpu1OpsPerTxn(), benchmarkModule.getCpu1RecursionLevel());
+            cpu1Transaction(benchmarkModule.getCpu1RecursiveDepth());
         } else if (nextTrans.getProcedureClass().equals(CPU2.class)) {
-            cpu2Transaction(CPU2_howManyPerTrasaction, CPU2_sleep, CPU2_nestedLevel);
+            cpu2Transaction(benchmarkModule.getCpu2RecursiveDepth());
         } else if (nextTrans.getProcedureClass().equals(IO1.class)) {
             io1Transaction(IO1_howManyColsPerRow, IO1_howManyRowsPerUpdate, IO1_howManyUpdatePerTransaction, keyRange);
         } else if (nextTrans.getProcedureClass().equals(IO2.class)) {
@@ -107,15 +107,15 @@ public class ResourceStresserWorker extends Worker<ResourceStresserBenchmark> {
         proc.run(conn, this.getId(), howManyUpdatesPerTransaction, makeSureWorkerSetFitsInMemory, keyRange);
     }
 
-    private void cpu1Transaction(int opsPerTransaction, int recursionLevel) throws SQLException {
+    private void cpu1Transaction(int recursiveDepth) throws SQLException {
         CPU1 proc = this.getProcedure(CPU1.class);
         assert (proc != null);
-        proc.run(conn, opsPerTransaction, recursionLevel);
+        proc.run(conn, recursiveDepth);
     }
 
-    private void cpu2Transaction(int howManyPerTransaction, int sleepLength, int nestedLevel) throws SQLException {
+    private void cpu2Transaction(int recursiveDepth) throws SQLException {
         CPU2 proc = this.getProcedure(CPU2.class);
         assert (proc != null);
-        proc.run(conn, howManyPerTransaction, sleepLength, nestedLevel);
+        proc.run(conn, recursiveDepth);
     }
 }

@@ -44,4 +44,7 @@
         </transactiontype>
     </transactiontypes>
 
+    <cpu1RecursiveDepth>101</cpu1RecursiveDepth>
+    <cpu2RecursiveDepth>1000</cpu2RecursiveDepth>>
+
 </parameters>

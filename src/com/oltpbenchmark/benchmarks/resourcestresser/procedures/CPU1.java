@@ -55,28 +55,13 @@ public class CPU1 extends Procedure {
             ") " +
             "SELECT MAX(Ix), MAX(Iy), MAX(I) " +
             "FROM Zt"
-//            "SELECT array_to_string( " +
-//                "array_agg( " +
-//            	    "SUBSTRING( " +
-//            	        "' .,,,-----++++%%%%@@@@#### ', " +
-//            	        "GREATEST(I,1), " +
-//            	        "1 " +
-//            	    ") " +
-//            	"),'' " +
-//            ") " +
-//            "FROM Zt " +
-//            "GROUP BY Iy " +
-//            "ORDER BY Iy "
 		);
     
-    public void run(Connection conn, int opsPerTransaction, int recursionLevel) throws SQLException {
+    public void run(Connection conn, int recursiveDepth) throws SQLException {
         PreparedStatement stmt = this.getPreparedStatement(conn, cpuSelect);
-
-        for (int tranIdx = 0; tranIdx < opsPerTransaction; ++tranIdx) {
-        	stmt.setInt(1, recursionLevel);
-        	ResultSet rs = stmt.executeQuery();
-        	rs.close();
-        }
+    	stmt.setInt(1, recursiveDepth);
+    	ResultSet rs = stmt.executeQuery();
+    	rs.close();
     }
     
 }

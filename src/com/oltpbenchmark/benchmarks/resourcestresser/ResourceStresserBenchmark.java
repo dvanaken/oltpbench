@@ -35,34 +35,34 @@ import com.oltpbenchmark.benchmarks.resourcestresser.procedures.CPU1;
 public class ResourceStresserBenchmark extends BenchmarkModule {
 	private static final Logger LOG = Logger.getLogger(ResourceStresserBenchmark.class);
 
-    private static final int CPU1_DEFAULT_OPS_PER_TXN = 1;
-    private static final int CPU1_DEFAULT_RECURSION_LEVEL = 101;
+    private static final int CPU1_DEFAULT_RECURSIVE_DEPTH = 101;
+    private static final int CPU2_DEFAULT_RECURSIVE_DEPTH = 1000;
 
-	private final int cpu1OpsPerTxn;
-	private final int cpu1RecursionLevel;
+	private final int cpu1RecursiveDepth;
+	private final int cpu2RecursiveDepth;
 
 	public ResourceStresserBenchmark(WorkloadConfiguration workConf) {
 		super("resourcestresser", workConf, true);
 
 		XMLConfiguration xml = workConf.getXmlConfig();
-		if (xml != null && xml.containsKey("cpu1OpsPerTxn")) {
-		    this.cpu1OpsPerTxn = xml.getInt("cpu1OpsPerTxn");
+		if (xml != null && xml.containsKey("cpu1RecursiveDepth")) {
+		    this.cpu1RecursiveDepth = xml.getInt("cpu1RecursiveDepth");
         } else {
-        	this.cpu1OpsPerTxn = CPU1_DEFAULT_OPS_PER_TXN;
+        	this.cpu1RecursiveDepth = CPU1_DEFAULT_RECURSIVE_DEPTH;
         }
-		if (xml != null && xml.containsKey("cpu1RecursionLevel")) {
-		    this.cpu1RecursionLevel = xml.getInt("cpu1RecursionLevel");
+		if (xml != null && xml.containsKey("cpu2RecursiveDepth")) {
+		    this.cpu2RecursiveDepth = xml.getInt("cpu2RecursiveDepth");
         } else {
-        	this.cpu1RecursionLevel = CPU1_DEFAULT_RECURSION_LEVEL;
+        	this.cpu2RecursiveDepth = CPU2_DEFAULT_RECURSIVE_DEPTH;
         }
 	}
 
-	public int getCpu1OpsPerTxn() {
-		return this.cpu1OpsPerTxn;
+	public int getCpu1RecursiveDepth() {
+		return this.cpu1RecursiveDepth;
 	}
 
-	public int getCpu1RecursionLevel() {
-		return this.cpu1RecursionLevel;
+	public int getCpu2RecursiveDepth() {
+		return this.cpu2RecursiveDepth;
 	}
 	
 	@Override
@@ -72,8 +72,8 @@ public class ResourceStresserBenchmark extends BenchmarkModule {
 	
 	@Override
 	protected List<Worker<? extends BenchmarkModule>> makeWorkersImpl(boolean verbose) throws IOException {
-		LOG.info("Setting CPU1 ops/txn to " + this.cpu1OpsPerTxn + ".");
-		LOG.info("Setting CPU1 recursion level to " + this.cpu1RecursionLevel + ".");
+		LOG.info("Setting CPU1 recursion level to " + this.cpu1RecursiveDepth + ".");
+		LOG.info("Setting CPU2 recursion level to " + this.cpu2RecursiveDepth + ".");
 		List<Worker<? extends BenchmarkModule>> workers = new ArrayList<Worker<? extends BenchmarkModule>>();
 		int numKeys = (int) (workConf.getScaleFactor() * ResourceStresserConstants.RECORD_COUNT);
 		int keyRange = numKeys / workConf.getTerminals();
