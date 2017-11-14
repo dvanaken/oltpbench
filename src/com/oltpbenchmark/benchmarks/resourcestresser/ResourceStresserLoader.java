@@ -32,12 +32,6 @@ public class ResourceStresserLoader extends Loader<ResourceStresserBenchmark> {
         threads.add(new LoaderThread() {
         	@Override
         	public void load(Connection conn) throws SQLException {
-        		loadTable(conn, ResourceStresserConstants.TABLENAME_CPUTABLE);
-        	}
-        });
-        threads.add(new LoaderThread() {
-        	@Override
-        	public void load(Connection conn) throws SQLException {
         		loadTable(conn, ResourceStresserConstants.TABLENAME_IOTABLE);
         	}
         });
@@ -67,9 +61,7 @@ public class ResourceStresserLoader extends Loader<ResourceStresserBenchmark> {
         int i;
         for (i = 0; i < this.numEmployees; ++i) {
         	stmt.setInt(1, i);
-        	if (tableName.equals(ResourceStresserConstants.TABLENAME_CPUTABLE)) {
-            	stmt.setString(2, TextGenerator.randomStr(rng(), ResourceStresserConstants.STRING_LENGTH));
-        	} else if (tableName.equals(ResourceStresserConstants.TABLENAME_IOTABLE)) {
+        	if (tableName.equals(ResourceStresserConstants.TABLENAME_IOTABLE)) {
         		for (int j = 2; j <= catalog_tbl.getColumnCount(); ++j) {
         			stmt.setString(j, TextGenerator.randomStr(rng(), ResourceStresserConstants.STRING_LENGTH));
         		}

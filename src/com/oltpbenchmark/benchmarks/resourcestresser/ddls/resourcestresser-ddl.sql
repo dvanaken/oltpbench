@@ -1,10 +1,3 @@
-DROP TABLE IF EXISTS cputable;
-CREATE TABLE cputable (
-  empid int NOT NULL,
-  passwd char(255) NOT NULL,
-  PRIMARY KEY (empid)
-);
-
 DROP TABLE IF EXISTS iotable;
 CREATE TABLE iotable (
   empid int NOT NULL,

@@ -1,10 +1,3 @@
-DROP TABLE IF EXISTS cputable CASCADE;
-CREATE TABLE cputable (
-  empid int NOT NULL,
-  passwd String NOT NULL,
-  PRIMARY KEY (empid)
-);
-
 DROP TABLE IF EXISTS iotable CASCADE;
 CREATE TABLE iotable (
   empid int NOT NULL,
