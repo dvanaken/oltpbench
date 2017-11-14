@@ -40,23 +40,14 @@ public class ResourceStresserWorker extends Worker<ResourceStresserBenchmark> {
     public static final int CONTENTION2_howManyUpdates = 5;
     public static final int CONTENTION2_sleepLength = 2;
 
-    public static final int IO1_howManyColsPerRow = 16;
-    public static final int IO1_howManyRowsPerUpdate = 10;
-    public static final int IO1_howManyUpdatePerTransaction = 10;
-
-    public static final int IO2_howManyUpdatePerTransaction = 50;
-    public static final boolean IO2_makeSureWorketSetFitsInMemory = true;
-
     public static final Random gen = new Random(1); // I change the random seed
                                                     // every time!
-    
-    private final int keyRange;
+
     private final int numKeys;
 
-    public ResourceStresserWorker(ResourceStresserBenchmark benchmarkModule, int id, int numKeys, int keyRange) {
+    public ResourceStresserWorker(ResourceStresserBenchmark benchmarkModule, int id, int numKeys) {
         super(benchmarkModule, id);
         this.numKeys = numKeys;
-        this.keyRange = keyRange;
     }
 
     @Override
@@ -67,9 +58,9 @@ public class ResourceStresserWorker extends Worker<ResourceStresserBenchmark> {
         } else if (nextTrans.getProcedureClass().equals(CPU2.class)) {
             cpu2Transaction(benchmarkModule.getCpu2RecursiveDepth());
         } else if (nextTrans.getProcedureClass().equals(IO1.class)) {
-            io1Transaction(IO1_howManyColsPerRow, IO1_howManyRowsPerUpdate, IO1_howManyUpdatePerTransaction, keyRange);
+            io1Transaction();
         } else if (nextTrans.getProcedureClass().equals(IO2.class)) {
-            io2Transaction(IO2_howManyUpdatePerTransaction, IO2_makeSureWorketSetFitsInMemory, keyRange);
+            io2Transaction();
         } else if (nextTrans.getProcedureClass().equals(Contention1.class)) {
             contention1Transaction(CONTENTION1_howManyUpdates, CONTENTION1_sleepLength);
         } else if (nextTrans.getProcedureClass().equals(Contention2.class)) {
@@ -91,16 +82,16 @@ public class ResourceStresserWorker extends Worker<ResourceStresserBenchmark> {
         proc.run(conn, howManyKeys, howManyUpdates, sleepLength, this.numKeys);
     }
 
-    private void io1Transaction(int howManyColsPerRow, int howManyUpdatesPerTransaction, int howManyRowsPerUpdate, int keyRange) throws SQLException {
+    private void io1Transaction() throws SQLException {
         IO1 proc = this.getProcedure(IO1.class);
         assert (proc != null);
-        proc.run(conn, this.getId(), howManyColsPerRow, howManyUpdatesPerTransaction, howManyRowsPerUpdate, keyRange);
+        proc.run(conn);
     }
 
-    private void io2Transaction(int howManyUpdatesPerTransaction, boolean makeSureWorkerSetFitsInMemory, int keyRange) throws SQLException {
+    private void io2Transaction() throws SQLException {
         IO2 proc = this.getProcedure(IO2.class);
         assert (proc != null);
-        proc.run(conn, this.getId(), howManyUpdatesPerTransaction, makeSureWorkerSetFitsInMemory, keyRange);
+        proc.run(conn);
     }
 
     private void cpu1Transaction(int recursiveDepth) throws SQLException {

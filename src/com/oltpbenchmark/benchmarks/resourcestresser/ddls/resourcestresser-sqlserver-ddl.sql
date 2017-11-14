@@ -1,36 +1,22 @@
 -- Drop Exisiting Tables
 
-IF OBJECT_ID('[iotable]') IS NOT NULL DROP table [dbo].[iotable];
-IF OBJECT_ID('[iotablesmallrow]') IS NOT NULL DROP table [dbo].[iotablesmallrow];
+IF OBJECT_ID('[io1_table]') IS NOT NULL DROP table [dbo].[io1_table];
+IF OBJECT_ID('[io2_table1]') IS NOT NULL DROP table [dbo].[io2_table1];
+IF OBJECT_ID('[io2_table2]') IS NOT NULL DROP table [dbo].[io2_table2];
 IF OBJECT_ID('[locktable]') IS NOT NULL DROP table [dbo].[locktable];
 
 -- Create Tables
 
-CREATE TABLE iotable (
-  empid int NOT NULL,
-  data1 varchar(255) NOT NULL,
-  data2 varchar(255) NOT NULL,
-  data3 varchar(255) NOT NULL,
-  data4 varchar(255) NOT NULL,
-  data5 varchar(255) NOT NULL,
-  data6 varchar(255) NOT NULL,
-  data7 varchar(255) NOT NULL,
-  data8 varchar(255) NOT NULL,
-  data9 varchar(255) NOT NULL,
-  data10 varchar(255) NOT NULL,
-  data11 varchar(255) NOT NULL,
-  data12 varchar(255) NOT NULL,
-  data13 varchar(255) NOT NULL,
-  data14 varchar(255) NOT NULL,
-  data15 varchar(255) NOT NULL,
-  data16 varchar(255) NOT NULL,
-  PRIMARY KEY (empid)
+CREATE TABLE io1_table (
+  val int NOT NULL
 );
 
-CREATE TABLE iotablesmallrow (
-  empid int NOT NULL,
-  flag1 int NOT NULL,
-  PRIMARY KEY (empid)
+CREATE TABLE io2_table1 (
+  val int NOT NULL
+);
+
+CREATE TABLE io2_table2 (
+  val int NOT NULL
 );
 
 CREATE TABLE locktable (

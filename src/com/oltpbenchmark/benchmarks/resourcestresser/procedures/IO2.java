@@ -25,7 +25,6 @@ import org.apache.log4j.Logger;
 import com.oltpbenchmark.api.Procedure;
 import com.oltpbenchmark.api.SQLStmt;
 import com.oltpbenchmark.benchmarks.resourcestresser.ResourceStresserConstants;
-import com.oltpbenchmark.benchmarks.resourcestresser.ResourceStresserWorker;
 
 /**
  * io2Transaction deals with a table that has much smaller rows.
@@ -35,33 +34,13 @@ import com.oltpbenchmark.benchmarks.resourcestresser.ResourceStresserWorker;
 public class IO2 extends Procedure {
     private static final Logger LOG = Logger.getLogger(Procedure.class);
     
-    public final SQLStmt ioUpdate = new SQLStmt(
-        "UPDATE " + ResourceStresserConstants.TABLENAME_IOTABLESMALLROW +
-        " SET flag1 = ? WHERE empid = ?"
+    public final SQLStmt ioInsert = new SQLStmt(
+        "INSERT INTO " + ResourceStresserConstants.TABLENAME_IO2TABLE1 +
+        " SELECT * FROM " + ResourceStresserConstants.TABLENAME_IO2TABLE2
     );
     
-    public void run(Connection conn, int myId, int howManyUpdatesPerTransaction,
-    		boolean makeSureWorkerSetFitsInMemory, int keyRange) throws SQLException {
-        assert howManyUpdatesPerTransaction > 0;
-
-        PreparedStatement stmt = this.getPreparedStatement(conn, ioUpdate);
-
-        //int keyRange = (makeSureWorkerSetFitsInMemory ? 16777216 / 160 : 167772160 / 160); // FIXME
-        int startingKey = myId * keyRange;
-        int lastKey = (myId + 1) * keyRange - 1;
-                
-        for (int up = 0; up < howManyUpdatesPerTransaction; ++up) {
-            int key = ResourceStresserWorker.gen.nextInt(keyRange) + startingKey;
-            int value = ResourceStresserWorker.gen.nextInt();
-            assert key >= startingKey && key <= lastKey;
-            stmt.setInt(1, value);
-            stmt.setInt(2, key);
-
-            int result = stmt.executeUpdate();                 
-            if (result !=1 ) {
-                LOG.warn("supposedtochange=" + 1 + " but rc=" + result);
-            }
-            
-        } // FOR
+    public void run(Connection conn) throws SQLException {
+        PreparedStatement stmt = this.getPreparedStatement(conn, ioInsert);
+        stmt.executeUpdate();
     }
 }

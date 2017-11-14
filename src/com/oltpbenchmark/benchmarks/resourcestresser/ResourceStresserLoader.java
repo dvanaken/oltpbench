@@ -11,7 +11,6 @@ import org.apache.log4j.Logger;
 import com.oltpbenchmark.api.Loader;
 import com.oltpbenchmark.catalog.Table;
 import com.oltpbenchmark.util.SQLUtil;
-import com.oltpbenchmark.util.TextGenerator;
 
 public class ResourceStresserLoader extends Loader<ResourceStresserBenchmark> {
 	
@@ -32,13 +31,13 @@ public class ResourceStresserLoader extends Loader<ResourceStresserBenchmark> {
         threads.add(new LoaderThread() {
         	@Override
         	public void load(Connection conn) throws SQLException {
-        		loadTable(conn, ResourceStresserConstants.TABLENAME_IOTABLE);
+        		loadTable(conn, ResourceStresserConstants.TABLENAME_IO1TABLE);
         	}
         });
         threads.add(new LoaderThread() {
         	@Override
         	public void load(Connection conn) throws SQLException {
-        		loadTable(conn, ResourceStresserConstants.TABLENAME_IOTABLESMALLROW);
+        		loadTable(conn, ResourceStresserConstants.TABLENAME_IO2TABLE2);
         	}
         });
         threads.add(new LoaderThread() {
@@ -57,36 +56,36 @@ public class ResourceStresserLoader extends Loader<ResourceStresserBenchmark> {
 		if (LOG.isDebugEnabled()) LOG.debug("Start loading " + tableName);
 		String sql = SQLUtil.getInsertSQL(catalog_tbl, this.getDatabaseType().shouldEscapeNames());
         PreparedStatement stmt = conn.prepareStatement(sql);
-        int batch = 0;
-        int i;
-        for (i = 0; i < this.numEmployees; ++i) {
-        	stmt.setInt(1, i);
-        	if (tableName.equals(ResourceStresserConstants.TABLENAME_IOTABLE)) {
-        		for (int j = 2; j <= catalog_tbl.getColumnCount(); ++j) {
-        			stmt.setString(j, TextGenerator.randomStr(rng(), ResourceStresserConstants.STRING_LENGTH));
-        		}
-        	} else {
-        		assert(tableName.equals(ResourceStresserConstants.TABLENAME_LOCKTABLE) || 
-        			   tableName.equals(ResourceStresserConstants.TABLENAME_IOTABLESMALLROW));
+    	if (tableName.equals(ResourceStresserConstants.TABLENAME_IO1TABLE) ||
+    			tableName.equals(ResourceStresserConstants.TABLENAME_IO2TABLE2)) {
+    		stmt.setInt(1, 1);
+    		stmt.executeUpdate();
+    		conn.commit();
+    	} else {
+    		assert(tableName.equals(ResourceStresserConstants.TABLENAME_LOCKTABLE));
+            int batch = 0;
+            int i;
+            for (i = 0; i < this.numEmployees; ++i) {
+            	stmt.setInt(1, i);
         		stmt.setInt(2, rng().nextInt());
-        	}
-
-            stmt.addBatch();
-            if (++batch >= ResourceStresserConstants.COMMIT_BATCH_SIZE) {
-                int result[] = stmt.executeBatch();
-                assert (result != null);
+                stmt.addBatch();
+                if (++batch >= ResourceStresserConstants.COMMIT_BATCH_SIZE) {
+                    int result[] = stmt.executeBatch();
+                    assert (result != null);
+                    conn.commit();
+                    batch = 0;
+                    if (LOG.isDebugEnabled())
+                        LOG.debug(String.format("Records Loaded %d / %d", i + 1, this.numEmployees));
+                }
+            } // FOR
+            if (batch > 0) {
+                stmt.executeBatch();
                 conn.commit();
-                batch = 0;
                 if (LOG.isDebugEnabled())
-                    LOG.debug(String.format("Records Loaded %d / %d", i + 1, this.numEmployees));
+                    LOG.debug(String.format("Records Loaded %d / %d", i, this.numEmployees));
             }
-        } // FOR
-        if (batch > 0) {
-            stmt.executeBatch();
-            conn.commit();
-            if (LOG.isDebugEnabled())
-                LOG.debug(String.format("Records Loaded %d / %d", i, this.numEmployees));
-        }
+    	}
+
         stmt.close();
         if (LOG.isDebugEnabled()) LOG.debug("Finished loading " + tableName);
         return;

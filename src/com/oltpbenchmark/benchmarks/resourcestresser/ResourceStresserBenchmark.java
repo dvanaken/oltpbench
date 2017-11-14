@@ -20,6 +20,7 @@ package com.oltpbenchmark.benchmarks.resourcestresser;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -76,12 +77,29 @@ public class ResourceStresserBenchmark extends BenchmarkModule {
 		LOG.info("Setting CPU2 recursion level to " + this.cpu2RecursiveDepth + ".");
 		List<Worker<? extends BenchmarkModule>> workers = new ArrayList<Worker<? extends BenchmarkModule>>();
 		int numKeys = (int) (workConf.getScaleFactor() * ResourceStresserConstants.RECORD_COUNT);
-		int keyRange = numKeys / workConf.getTerminals();
 		// TODO: check ranges
 		for (int i = 0; i < workConf.getTerminals(); ++i) {
-			workers.add(new ResourceStresserWorker(this, i, numKeys, keyRange));
+			workers.add(new ResourceStresserWorker(this, i, numKeys));
 		} // FOR
 
+		// Truncate the I/O tables before the benchmark starts. We do this because the
+		// I/O procedures just do a bunch of insertions and we always want to start
+		// with empty tables.
+		Connection conn = workers.get(0).getConnection();
+		try {
+		    Statement statement  = conn.createStatement();
+		    try {
+		        statement.executeUpdate("TRUNCATE " + ResourceStresserConstants.TABLENAME_IO1TABLE +
+						", " + ResourceStresserConstants.TABLENAME_IO2TABLE1);
+		        statement.executeUpdate("INSERT INTO " + ResourceStresserConstants.TABLENAME_IO1TABLE +
+		        		" VALUES(1)");
+		    } finally {
+		        statement.close();
+		    }
+		    conn.commit();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
 		return workers;
 	}
 	
