@@ -26,11 +26,6 @@ import com.oltpbenchmark.api.Procedure;
 import com.oltpbenchmark.api.SQLStmt;
 import com.oltpbenchmark.benchmarks.resourcestresser.ResourceStresserConstants;
 
-/**
- * io2Transaction deals with a table that has much smaller rows.
- * It runs a given number of updates, where each update only 
- * changes one row.
- */
 public class IO2 extends Procedure {
     private static final Logger LOG = Logger.getLogger(Procedure.class);
     
@@ -41,6 +36,9 @@ public class IO2 extends Procedure {
     
     public void run(Connection conn) throws SQLException {
         PreparedStatement stmt = this.getPreparedStatement(conn, ioInsert);
-        stmt.executeUpdate();
+        int result = stmt.executeUpdate();
+        if (result != 1) {
+        	LOG.warn("Inserted " + result + " tuples (expected insert 1 tuple).");
+        }
     }
 }

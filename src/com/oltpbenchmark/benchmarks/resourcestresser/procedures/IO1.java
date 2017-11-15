@@ -36,6 +36,11 @@ public class IO1 extends Procedure {
     
     public void run(Connection conn) throws SQLException {
         PreparedStatement stmt = this.getPreparedStatement(conn, ioInsert);
-        stmt.executeUpdate();
+        int result = stmt.executeUpdate();
+        if (result <= 0) {
+        	LOG.warn("Did not insert any tuples (expected to insert >= 1 tuples).");
+        } else {
+        	LOG.debug("Inserted " + result + " tuples.");
+        }
     }
 }
