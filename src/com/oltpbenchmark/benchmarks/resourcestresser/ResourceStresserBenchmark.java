@@ -36,7 +36,7 @@ import com.oltpbenchmark.benchmarks.resourcestresser.procedures.CPU1;
 public class ResourceStresserBenchmark extends BenchmarkModule {
 	private static final Logger LOG = Logger.getLogger(ResourceStresserBenchmark.class);
 
-    private static final int CPU1_DEFAULT_RECURSIVE_DEPTH = 101;
+    private static final int CPU1_DEFAULT_RECURSIVE_DEPTH = 100;
     private static final int CPU2_DEFAULT_RECURSIVE_DEPTH = 1000;
 
 	private final int cpu1RecursiveDepth;
@@ -73,13 +73,11 @@ public class ResourceStresserBenchmark extends BenchmarkModule {
 	
 	@Override
 	protected List<Worker<? extends BenchmarkModule>> makeWorkersImpl(boolean verbose) throws IOException {
-		LOG.info("Setting CPU1 recursion level to " + this.cpu1RecursiveDepth + ".");
-		LOG.info("Setting CPU2 recursion level to " + this.cpu2RecursiveDepth + ".");
+		LOG.info("Setting CPU1 recursive depth to " + this.cpu1RecursiveDepth + ".");
+		LOG.info("Setting CPU2 recursive depth to " + this.cpu2RecursiveDepth + ".");
 		List<Worker<? extends BenchmarkModule>> workers = new ArrayList<Worker<? extends BenchmarkModule>>();
-		int numKeys = (int) (workConf.getScaleFactor() * ResourceStresserConstants.RECORD_COUNT);
-		// TODO: check ranges
 		for (int i = 0; i < workConf.getTerminals(); ++i) {
-			workers.add(new ResourceStresserWorker(this, i, numKeys));
+			workers.add(new ResourceStresserWorker(this, i));
 		} // FOR
 
 		// Truncate the I/O tables before the benchmark starts. We do this because the

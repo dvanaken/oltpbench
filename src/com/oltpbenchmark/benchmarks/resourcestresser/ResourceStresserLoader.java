@@ -15,14 +15,9 @@ import com.oltpbenchmark.util.SQLUtil;
 public class ResourceStresserLoader extends Loader<ResourceStresserBenchmark> {
 	
     private static final Logger LOG = Logger.getLogger(ResourceStresserLoader.class);
-    private final int numEmployees;
 
 	public ResourceStresserLoader(ResourceStresserBenchmark benchmark, Connection conn) {
 		super(benchmark, conn);
-        this.numEmployees = (int) (this.scaleFactor * ResourceStresserConstants.RECORD_COUNT);
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("# of EMPLOYEES:  " + this.numEmployees);
-        }
 	}
 
 	@Override
@@ -40,12 +35,6 @@ public class ResourceStresserLoader extends Loader<ResourceStresserBenchmark> {
         		loadTable(conn, ResourceStresserConstants.TABLENAME_IO2TABLE2);
         	}
         });
-        threads.add(new LoaderThread() {
-        	@Override
-        	public void load(Connection conn) throws SQLException {
-        		loadTable(conn, ResourceStresserConstants.TABLENAME_LOCKTABLE);
-        	}
-        });
         return (threads);
 	}
 	
@@ -61,31 +50,7 @@ public class ResourceStresserLoader extends Loader<ResourceStresserBenchmark> {
     		stmt.setInt(1, 1);
     		stmt.executeUpdate();
     		conn.commit();
-    	} else {
-    		assert(tableName.equals(ResourceStresserConstants.TABLENAME_LOCKTABLE));
-            int batch = 0;
-            int i;
-            for (i = 0; i < this.numEmployees; ++i) {
-            	stmt.setInt(1, i);
-        		stmt.setInt(2, rng().nextInt());
-                stmt.addBatch();
-                if (++batch >= ResourceStresserConstants.COMMIT_BATCH_SIZE) {
-                    int result[] = stmt.executeBatch();
-                    assert (result != null);
-                    conn.commit();
-                    batch = 0;
-                    if (LOG.isDebugEnabled())
-                        LOG.debug(String.format("Records Loaded %d / %d", i + 1, this.numEmployees));
-                }
-            } // FOR
-            if (batch > 0) {
-                stmt.executeBatch();
-                conn.commit();
-                if (LOG.isDebugEnabled())
-                    LOG.debug(String.format("Records Loaded %d / %d", i, this.numEmployees));
-            }
     	}
-
         stmt.close();
         if (LOG.isDebugEnabled()) LOG.debug("Finished loading " + tableName);
         return;

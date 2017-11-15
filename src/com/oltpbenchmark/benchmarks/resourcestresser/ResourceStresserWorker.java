@@ -18,36 +18,20 @@
 package com.oltpbenchmark.benchmarks.resourcestresser;
 
 import java.sql.SQLException;
-import java.util.Random;
 
 import com.oltpbenchmark.api.Procedure.UserAbortException;
 import com.oltpbenchmark.api.TransactionType;
 import com.oltpbenchmark.api.Worker;
 import com.oltpbenchmark.benchmarks.resourcestresser.procedures.CPU1;
 import com.oltpbenchmark.benchmarks.resourcestresser.procedures.CPU2;
-import com.oltpbenchmark.benchmarks.resourcestresser.procedures.Contention1;
-import com.oltpbenchmark.benchmarks.resourcestresser.procedures.Contention2;
 import com.oltpbenchmark.benchmarks.resourcestresser.procedures.IO1;
 import com.oltpbenchmark.benchmarks.resourcestresser.procedures.IO2;
 import com.oltpbenchmark.types.TransactionStatus;
 
 public class ResourceStresserWorker extends Worker<ResourceStresserBenchmark> {
-    public static final int CONTENTION1_howManyKeys = 10;
-    public static final int CONTENTION1_howManyUpdates = 20;
-    public static final int CONTENTION1_sleepLength = 1;
-    
-    public static final int CONTENTION2_howManyKeys = 10;
-    public static final int CONTENTION2_howManyUpdates = 5;
-    public static final int CONTENTION2_sleepLength = 2;
 
-    public static final Random gen = new Random(1); // I change the random seed
-                                                    // every time!
-
-    private final int numKeys;
-
-    public ResourceStresserWorker(ResourceStresserBenchmark benchmarkModule, int id, int numKeys) {
+    public ResourceStresserWorker(ResourceStresserBenchmark benchmarkModule, int id) {
         super(benchmarkModule, id);
-        this.numKeys = numKeys;
     }
 
     @Override
@@ -61,25 +45,9 @@ public class ResourceStresserWorker extends Worker<ResourceStresserBenchmark> {
             io1Transaction();
         } else if (nextTrans.getProcedureClass().equals(IO2.class)) {
             io2Transaction();
-        } else if (nextTrans.getProcedureClass().equals(Contention1.class)) {
-            contention1Transaction(CONTENTION1_howManyUpdates, CONTENTION1_sleepLength);
-        } else if (nextTrans.getProcedureClass().equals(Contention2.class)) {
-            contention2Transaction(CONTENTION2_howManyKeys, CONTENTION2_howManyUpdates, CONTENTION2_sleepLength);
         }
         conn.commit();
         return (TransactionStatus.SUCCESS);
-    }
-
-    private void contention1Transaction(int howManyUpdates, int sleepLength) throws SQLException {
-        Contention1 proc = this.getProcedure(Contention1.class);
-        assert (proc != null);
-        proc.run(conn, howManyUpdates, sleepLength, this.numKeys);
-    }
-
-    private void contention2Transaction(int howManyKeys, int howManyUpdates, int sleepLength) throws SQLException {
-        Contention2 proc = this.getProcedure(Contention2.class);
-        assert (proc != null);
-        proc.run(conn, howManyKeys, howManyUpdates, sleepLength, this.numKeys);
     }
 
     private void io1Transaction() throws SQLException {
