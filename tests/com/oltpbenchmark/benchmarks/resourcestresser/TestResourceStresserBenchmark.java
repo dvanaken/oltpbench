@@ -23,8 +23,6 @@ import com.oltpbenchmark.benchmarks.resourcestresser.procedures.*;
 public class TestResourceStresserBenchmark extends AbstractTestBenchmarkModule<ResourceStresserBenchmark> {
 	
     public static final Class<?> PROC_CLASSES[] = {
-        Contention1.class,
-        Contention2.class,
         CPU1.class,
         CPU2.class,
         IO1.class,
