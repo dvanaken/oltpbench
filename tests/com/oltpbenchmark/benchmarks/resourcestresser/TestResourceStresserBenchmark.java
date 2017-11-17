@@ -23,10 +23,12 @@ import com.oltpbenchmark.benchmarks.resourcestresser.procedures.*;
 public class TestResourceStresserBenchmark extends AbstractTestBenchmarkModule<ResourceStresserBenchmark> {
 	
     public static final Class<?> PROC_CLASSES[] = {
-        CPU1.class,
-        CPU2.class,
-        IO1.class,
-        IO2.class,
+        CPUMandelbrot.class,
+        CPUMD5.class,
+        IOInt.class,
+        IOIntExponential.class,
+        IOBinary.class,
+        IOBlob.class
     };
     
 	@Override

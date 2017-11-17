@@ -9,9 +9,6 @@
     <password></password>
     <isolation>TRANSACTION_SERIALIZABLE</isolation>
 
-    <!-- Scalefactor in ResourceStresser scales by *100 the number of employees -->
-    <scalefactor>2</scalefactor>
-    
     <!-- The workload -->   
     <terminals>2</terminals>    
     <works>
@@ -21,30 +18,32 @@
             <weights>16.66,16.66,16.66,16.66,16.66,16.7</weights>
         </work>
     </works>
+
+    <!-- Settings for the different resource stressers -->
+    <cpuMandelbrotRecursiveDepth>100</cpuMandelbrotRecursiveDepth>
+    <cpuMD5RecursiveDepth>100</cpuMD5RecursiveDepth>
+    <ioBinarySizekB>4</ioBinarySizekB>
     
     <!-- R/S Procedures declaration -->
     <transactiontypes>
         <transactiontype>
-            <name>CPU1</name>
+            <name>CPUMandelbrot</name>
         </transactiontype>
         <transactiontype>
-            <name>CPU2</name>
+            <name>CPUMD5</name>
         </transactiontype>
         <transactiontype>
-            <name>IO1</name>
+            <name>IOInt</name>
         </transactiontype>
         <transactiontype>
-            <name>IO2</name>
+            <name>IOIntExponential</name>
         </transactiontype>
         <transactiontype>
-            <name>Contention1</name>
+            <name>IOBinary</name>
         </transactiontype>
         <transactiontype>
-            <name>Contention2</name>
+            <name>IOBlob</name>
         </transactiontype>
     </transactiontypes>
-
-    <cpu1RecursiveDepth>101</cpu1RecursiveDepth>
-    <cpu2RecursiveDepth>1000</cpu2RecursiveDepth>>
 
 </parameters>

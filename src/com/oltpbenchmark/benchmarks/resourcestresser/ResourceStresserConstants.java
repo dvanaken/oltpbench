@@ -2,9 +2,16 @@ package com.oltpbenchmark.benchmarks.resourcestresser;
 
 public class ResourceStresserConstants {
 
-    public static final String TABLENAME_IO1TABLE = "io1_table";
+    public static final String TABLENAME_IOINTEXPONENTIAL = "iointexponential";
 
-    public static final String TABLENAME_IO2TABLE1 = "io2_table1";
+    public static final String TABLENAME_IOINT = "ioint";
     
-    public static final String TABLENAME_IO2TABLE2 = "io2_table2";
+    public static final String TABLENAME_IOINTSTORE = "iointstore";
+
+    public static final String TABLENAME_IOBINARY = "iobinary";
+
+    public static final String TABLENAME_IOBINARYSTORE = "iobinarystore";
+
+    public static final String TABLENAME_IOBLOB = "ioblob";
+
 }

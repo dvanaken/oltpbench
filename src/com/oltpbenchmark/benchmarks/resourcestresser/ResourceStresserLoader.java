@@ -3,6 +3,7 @@ package com.oltpbenchmark.benchmarks.resourcestresser;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,34 +27,42 @@ public class ResourceStresserLoader extends Loader<ResourceStresserBenchmark> {
         threads.add(new LoaderThread() {
         	@Override
         	public void load(Connection conn) throws SQLException {
-        		loadTable(conn, ResourceStresserConstants.TABLENAME_IO1TABLE);
-        	}
-        });
-        threads.add(new LoaderThread() {
-        	@Override
-        	public void load(Connection conn) throws SQLException {
-        		loadTable(conn, ResourceStresserConstants.TABLENAME_IO2TABLE2);
+        		loadTables(conn);
         	}
         });
         return (threads);
 	}
-	
-	private void loadTable(Connection conn, String tableName) throws SQLException {
-		Table catalog_tbl = this.benchmark.getTableCatalog(tableName);
-		assert (catalog_tbl != null);
 
-		if (LOG.isDebugEnabled()) LOG.debug("Start loading " + tableName);
-		String sql = SQLUtil.getInsertSQL(catalog_tbl, this.getDatabaseType().shouldEscapeNames());
-        PreparedStatement stmt = conn.prepareStatement(sql);
-    	if (tableName.equals(ResourceStresserConstants.TABLENAME_IO1TABLE) ||
-    			tableName.equals(ResourceStresserConstants.TABLENAME_IO2TABLE2)) {
-    		stmt.setInt(1, 1);
-    		stmt.executeUpdate();
-    		conn.commit();
-    	}
-        stmt.close();
-        if (LOG.isDebugEnabled()) LOG.debug("Finished loading " + tableName);
-        return;
+	private void loadTables(Connection conn) throws SQLException {
+		boolean escNames = this.getDatabaseType().shouldEscapeNames();
+		Object[] value = { 1 };
+		int[] sqlType = { Types.INTEGER };
+
+		if (LOG.isDebugEnabled()) LOG.debug("Starting to load tables...");
+		Table catalogTable = this.benchmark.getTableCatalog(
+				ResourceStresserConstants.TABLENAME_IOINTEXPONENTIAL);
+		this.executeInsertSQL(conn, SQLUtil.getInsertSQL(catalogTable, escNames), value, sqlType);
+
+		catalogTable = this.benchmark.getTableCatalog(
+				ResourceStresserConstants.TABLENAME_IOINTSTORE);
+		this.executeInsertSQL(conn, SQLUtil.getInsertSQL(catalogTable, escNames), value, sqlType);
+
+		String sql = "INSERT INTO " + ResourceStresserConstants.TABLENAME_IOBINARYSTORE +
+				" VALUES(gen_binary_string(?))";
+		value[0] = this.benchmark.getIOBinarySizeBytes();
+		this.executeInsertSQL(conn, sql, value, sqlType);
+
+		conn.commit();
+		if (LOG.isDebugEnabled()) LOG.debug("ResourceStresser loader done.");
 	}
 
+	private void executeInsertSQL(Connection conn, String sql, Object[] values, int[] sqlTypes) throws SQLException {
+		assert (values.length == sqlTypes.length);
+		PreparedStatement stmt = conn.prepareStatement(sql);
+		for (int i = 0; i < values.length; ++i) {
+			stmt.setObject(i + 1, values[i], sqlTypes[i]);
+			stmt.executeUpdate();
+			stmt.close();
+		}
+	}
 }

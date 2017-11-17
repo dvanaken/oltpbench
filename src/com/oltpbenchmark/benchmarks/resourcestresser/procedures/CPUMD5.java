@@ -18,50 +18,25 @@ package com.oltpbenchmark.benchmarks.resourcestresser.procedures;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import com.oltpbenchmark.api.Procedure;
 import com.oltpbenchmark.api.SQLStmt;
 
-public class CPU1 extends Procedure {
-	
-	public final SQLStmt cpuSelect = new SQLStmt(
-			"WITH RECURSIVE " +
-            "x(i) " +
-            "AS ( " +
-                "VALUES(0) " +
-            "UNION ALL " +
-                "SELECT i + 1 FROM x WHERE i < ? " +
-            "), " +
-            "Z(Ix, Iy, Cx, Cy, X, Y, I) " +
-            "AS ( " +
-                "SELECT Ix, Iy, X::FLOAT, Y::FLOAT, X::FLOAT, Y::FLOAT, 0 " +
-                "FROM " +
-                    "(SELECT -2.2 + 0.031 * i, i FROM x) AS xgen(x,ix) " +
-                "CROSS JOIN " +
-                    "(SELECT -1.5 + 0.031 * i, i FROM x) AS ygen(y,iy) " +
-                "UNION ALL " +
-                "SELECT Ix, Iy, Cx, Cy, X * X - Y * Y + Cx AS X, Y * X * 2 + Cy, I + 1 " +
-                "FROM Z " +
-                "WHERE X * X + Y * Y < 16.0 " +
-                "AND I < 27 " +
-            "), " +
-            "Zt (Ix, Iy, I) AS ( " +
-                "SELECT Ix, Iy, MAX(I) AS I " +
-                "FROM Z " +
-                "GROUP BY Iy, Ix " +
-                "ORDER BY Iy, Ix " +
-            ") " +
-            "SELECT MAX(Ix), MAX(Iy), MAX(I) " +
-            "FROM Zt"
-		);
+public class CPUMD5 extends Procedure {
+
+    public final SQLStmt cpuSelect = new SQLStmt(
+    		"WITH RECURSIVE md5_compute(i, j) AS (" +
+    				"SELECT 0, md5('0') UNION ALL " +
+    				"SELECT i+1, concat(j, md5(j)) " +
+    				"FROM md5_compute " +
+    				"WHERE i < ?" +
+    		") SELECT md5(max(j)) from md5_compute"
+    );
     
     public void run(Connection conn, int recursiveDepth) throws SQLException {
         PreparedStatement stmt = this.getPreparedStatement(conn, cpuSelect);
     	stmt.setInt(1, recursiveDepth);
-    	ResultSet rs = stmt.executeQuery();
-    	rs.close();
+    	stmt.execute();
     }
-    
 }

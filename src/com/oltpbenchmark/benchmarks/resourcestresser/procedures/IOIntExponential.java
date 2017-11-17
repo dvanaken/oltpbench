@@ -26,12 +26,12 @@ import com.oltpbenchmark.api.Procedure;
 import com.oltpbenchmark.api.SQLStmt;
 import com.oltpbenchmark.benchmarks.resourcestresser.ResourceStresserConstants;
 
-public class IO1 extends Procedure {
+public class IOIntExponential extends Procedure {
     private static final Logger LOG = Logger.getLogger(Procedure.class);
 
     public final SQLStmt ioInsert = new SQLStmt(
-    	"INSERT INTO " + ResourceStresserConstants.TABLENAME_IO1TABLE +
-    	" SELECT * FROM " + ResourceStresserConstants.TABLENAME_IO1TABLE
+    	"INSERT INTO " + ResourceStresserConstants.TABLENAME_IOINTEXPONENTIAL +
+    	" SELECT * FROM " + ResourceStresserConstants.TABLENAME_IOINTEXPONENTIAL
     );
     
     public void run(Connection conn) throws SQLException {
@@ -39,7 +39,7 @@ public class IO1 extends Procedure {
         int result = stmt.executeUpdate();
         if (result <= 0) {
         	LOG.warn("Did not insert any tuples (expected to insert >= 1 tuples).");
-        } else {
+        } else if (LOG.isDebugEnabled()) {
         	LOG.debug("Inserted " + result + " tuples.");
         }
     }

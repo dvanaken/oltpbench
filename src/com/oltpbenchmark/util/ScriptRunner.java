@@ -21,12 +21,16 @@
 package com.oltpbenchmark.util;
 
 import java.net.URL;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.LineNumberReader;
 import java.io.PrintWriter;
 import java.io.Reader;
-import java.sql.*;
 
 import org.apache.log4j.Logger;
 
@@ -154,13 +158,11 @@ public class ScriptRunner {
 					command.append(" ");
 					Statement statement = conn.createStatement();
 
-					// println(command);
-
 					boolean hasResults = false;
 					final String sql = command.toString().trim();
 					if (stopOnError) {
                                 try {
-						hasResults = statement.execute(sql);
+                                	hasResults = statement.execute(sql);
                                 } catch (SQLException e) {
                                     // Some errors aren't actually errors.
                                     if (e.getErrorCode() == 0 && e.getSQLState() != null
@@ -172,7 +174,31 @@ public class ScriptRunner {
                                         // table didn't exist. But no matter: we can carry
                                         // on.
                                     }
+                                    else if (e.getErrorCode() == -5509 && e.getSQLState() != null
+                                    		&& e.getSQLState().equals("42509"))
+                                    {
+                                    	// Throws a SQLException if the type references a
+                                    	// non-standard data type (e.g., Postgres' OID and
+                                    	// bytea types). Ignoring this message is fine
+                                    	// because the tables are still created on the
+                                    	// server end (with the correct types).
+                                    }
+                                    else if (e.getErrorCode() == -5581 && e.getSQLState() != null
+                                    		&& e.getSQLState().equals("42581"))
+                                    {
+                                    	// Throws a SQLException for non-standard Postgres'
+                                    	// PLPGSQL syntax. Ignoring this error results in
+                                    	// the correct behavior.
+                                    }
+                                    else if (e.getErrorCode() == 0 && e.getSQLState() != null
+                                    		&& e.getSQLState().equals("42601"))
+                                    {
+                                    	// Throws a SQLException for non-standard Postgres'
+                                    	// PLPGSQL syntax. Ignoring this error results in
+                                    	// the correct behavior.
+                                    }
                                     else {
+                                    	printlnError(e.getErrorCode() + ", " +e.getSQLState());
                                         throw e;
                                     }
                                 }

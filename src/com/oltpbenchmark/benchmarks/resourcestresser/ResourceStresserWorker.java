@@ -22,10 +22,12 @@ import java.sql.SQLException;
 import com.oltpbenchmark.api.Procedure.UserAbortException;
 import com.oltpbenchmark.api.TransactionType;
 import com.oltpbenchmark.api.Worker;
-import com.oltpbenchmark.benchmarks.resourcestresser.procedures.CPU1;
-import com.oltpbenchmark.benchmarks.resourcestresser.procedures.CPU2;
-import com.oltpbenchmark.benchmarks.resourcestresser.procedures.IO1;
-import com.oltpbenchmark.benchmarks.resourcestresser.procedures.IO2;
+import com.oltpbenchmark.benchmarks.resourcestresser.procedures.CPUMandelbrot;
+import com.oltpbenchmark.benchmarks.resourcestresser.procedures.CPUMD5;
+import com.oltpbenchmark.benchmarks.resourcestresser.procedures.IOIntExponential;
+import com.oltpbenchmark.benchmarks.resourcestresser.procedures.IOInt;
+import com.oltpbenchmark.benchmarks.resourcestresser.procedures.IOBinary;
+import com.oltpbenchmark.benchmarks.resourcestresser.procedures.IOBlob;
 import com.oltpbenchmark.types.TransactionStatus;
 
 public class ResourceStresserWorker extends Worker<ResourceStresserBenchmark> {
@@ -37,39 +39,55 @@ public class ResourceStresserWorker extends Worker<ResourceStresserBenchmark> {
     @Override
     protected TransactionStatus executeWork(TransactionType nextTrans) throws UserAbortException, SQLException {
     	ResourceStresserBenchmark benchmarkModule = this.getBenchmarkModule();
-        if (nextTrans.getProcedureClass().equals(CPU1.class)) {
-            cpu1Transaction(benchmarkModule.getCpu1RecursiveDepth());
-        } else if (nextTrans.getProcedureClass().equals(CPU2.class)) {
-            cpu2Transaction(benchmarkModule.getCpu2RecursiveDepth());
-        } else if (nextTrans.getProcedureClass().equals(IO1.class)) {
-            io1Transaction();
-        } else if (nextTrans.getProcedureClass().equals(IO2.class)) {
-            io2Transaction();
+        if (nextTrans.getProcedureClass().equals(CPUMandelbrot.class)) {
+            cpuMandelbrotTransaction(benchmarkModule.getCPUMandelbrotRecursiveDepth());
+        } else if (nextTrans.getProcedureClass().equals(CPUMD5.class)) {
+            cpuMD5Transaction(benchmarkModule.getCPUMD5RecursiveDepth());
+        } else if (nextTrans.getProcedureClass().equals(IOIntExponential.class)) {
+            ioIntExponentialTransaction();
+        } else if (nextTrans.getProcedureClass().equals(IOInt.class)) {
+            ioIntTransaction();
+        } else if (nextTrans.getProcedureClass().equals(IOBinary.class)) {
+            ioBinaryTransaction();
+        } else if (nextTrans.getProcedureClass().equals(IOBlob.class)) {
+            ioBlobTransaction();
         }
         conn.commit();
         return (TransactionStatus.SUCCESS);
     }
 
-    private void io1Transaction() throws SQLException {
-        IO1 proc = this.getProcedure(IO1.class);
+    private void ioIntExponentialTransaction() throws SQLException {
+        IOIntExponential proc = this.getProcedure(IOIntExponential.class);
         assert (proc != null);
         proc.run(conn);
     }
 
-    private void io2Transaction() throws SQLException {
-        IO2 proc = this.getProcedure(IO2.class);
+    private void ioIntTransaction() throws SQLException {
+        IOInt proc = this.getProcedure(IOInt.class);
         assert (proc != null);
         proc.run(conn);
     }
 
-    private void cpu1Transaction(int recursiveDepth) throws SQLException {
-        CPU1 proc = this.getProcedure(CPU1.class);
+    private void ioBinaryTransaction() throws SQLException {
+        IOBinary proc = this.getProcedure(IOBinary.class);
+        assert (proc != null);
+        proc.run(conn);
+    }
+
+    private void ioBlobTransaction() throws SQLException {
+        IOBlob proc = this.getProcedure(IOBlob.class);
+        assert (proc != null);
+        proc.run(conn);
+    }
+
+    private void cpuMandelbrotTransaction(int recursiveDepth) throws SQLException {
+        CPUMandelbrot proc = this.getProcedure(CPUMandelbrot.class);
         assert (proc != null);
         proc.run(conn, recursiveDepth);
     }
 
-    private void cpu2Transaction(int recursiveDepth) throws SQLException {
-        CPU2 proc = this.getProcedure(CPU2.class);
+    private void cpuMD5Transaction(int recursiveDepth) throws SQLException {
+        CPUMD5 proc = this.getProcedure(CPUMD5.class);
         assert (proc != null);
         proc.run(conn, recursiveDepth);
     }
