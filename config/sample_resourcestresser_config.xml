@@ -15,14 +15,14 @@
         <work>
             <time>300</time>
             <rate>10000</rate>
-            <weights>16.66,16.66,16.66,16.66,16.66,16.7</weights>
+            <weights>20,20,20,0,20,20</weights>
         </work>
     </works>
 
     <!-- Settings for the different resource stressers -->
-    <cpuMandelbrotRecursiveDepth>100</cpuMandelbrotRecursiveDepth>
-    <cpuMD5RecursiveDepth>100</cpuMD5RecursiveDepth>
-    <ioBinarySizekB>4</ioBinarySizekB>
+    <cpuMandelbrotRecursiveDepth>10</cpuMandelbrotRecursiveDepth>
+    <cpuMD5RecursiveDepth>10</cpuMD5RecursiveDepth>
+    <ioBinarySizekB>1</ioBinarySizekB>
     
     <!-- R/S Procedures declaration -->
     <transactiontypes>
