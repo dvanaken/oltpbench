@@ -63,7 +63,7 @@ public class ResourceStresserBenchmark extends BenchmarkModule {
 
 		this.ioBinarySizekB = this.resolveWorkConfParam(xml, "ioBinarySizekB",
 				IO_MIN_BINARY_SIZE_KB, IO_MAX_BINARY_SIZE_KB, IO_DEFAULT_BINARY_SIZE_KB);
-		LOG.info("Setting IO blob size (bytes) to " + this.ioBinarySizekB + ".");
+		LOG.info("Setting IO binary size to " + this.ioBinarySizekB + " kB.");
 
 		this.resetTables();
 	}
@@ -142,8 +142,11 @@ public class ResourceStresserBenchmark extends BenchmarkModule {
 					stmt.execute("TRUNCATE " + tableName);
 				}
 			}
-			stmt.execute("INSERT INTO " + ResourceStresserConstants.TABLENAME_IOINTEXPONENTIAL +
-					" SELECT * FROM " + ResourceStresserConstants.TABLENAME_IOINTSTORE);
+			if (this.tableExists(conn, ResourceStresserConstants.TABLENAME_IOINTEXPONENTIAL)
+					&& this.tableExists(conn, ResourceStresserConstants.TABLENAME_IOINTSTORE)) {
+				stmt.execute("INSERT INTO " + ResourceStresserConstants.TABLENAME_IOINTEXPONENTIAL +
+						" SELECT * FROM " + ResourceStresserConstants.TABLENAME_IOINTSTORE);
+			}
 			stmt.executeQuery("SELECT truncate_if_exists_lo('" +
 					ResourceStresserConstants.TABLENAME_IOBLOB + "', 'val')");
 			stmt.close();
