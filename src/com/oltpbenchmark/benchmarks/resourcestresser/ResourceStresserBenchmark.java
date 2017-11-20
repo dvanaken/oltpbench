@@ -147,8 +147,10 @@ public class ResourceStresserBenchmark extends BenchmarkModule {
 				stmt.execute("INSERT INTO " + ResourceStresserConstants.TABLENAME_IOINTEXPONENTIAL +
 						" SELECT * FROM " + ResourceStresserConstants.TABLENAME_IOINTSTORE);
 			}
-			stmt.executeQuery("SELECT truncate_if_exists_lo('" +
-					ResourceStresserConstants.TABLENAME_IOBLOB + "', 'val')");
+			if (this.tableExists(conn, ResourceStresserConstants.TABLENAME_IOBLOB)) {
+				stmt.executeQuery("SELECT truncate_if_exists_lo('" +
+						ResourceStresserConstants.TABLENAME_IOBLOB + "', 'val')");
+			}
 			stmt.close();
 			conn.commit();
 			conn.close();
