@@ -20,6 +20,7 @@ package com.oltpbenchmark.benchmarks.resourcestresser;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -44,6 +45,7 @@ public class ResourceStresserBenchmark extends BenchmarkModule {
     private static final int IO_DEFAULT_BINARY_SIZE_KB = 2;
     private static final int IO_MIN_BINARY_SIZE_KB = 1;
     private static final int IO_MAX_BINARY_SIZE_KB = 100000;
+    private static final int BLOB_UNLINK_BATCH_SIZE = 1000;
 
 	private final int cpuMandelbrotRecursiveDepth;
 	private final int cpuMD5RecursiveDepth;
@@ -127,29 +129,63 @@ public class ResourceStresserBenchmark extends BenchmarkModule {
 		// Reset the I/O tables before the benchmark starts. We do this because the
 		// I/O procedures just do a bunch of insertions and we always want to start
 		// with empty tables.
-    	String[] truncateTables = {
-			ResourceStresserConstants.TABLENAME_IOINTEXPONENTIAL,
-			ResourceStresserConstants.TABLENAME_IOINT,
-			ResourceStresserConstants.TABLENAME_IOBINARY
-    	};
 		Connection conn;
 		try {
 			conn = this.makeConnection();
 			conn.setAutoCommit(false);
+
+			// Postgres BLOBS are stored in the pg_largeobject catalog; NOT in user
+			// tables. Instead, user tables store OIDs as references to the BLOBs. It's
+			// necessary to call the lo_unlink() function to actually delete them.
+			PreparedStatement blobCount = conn.prepareStatement(
+					"SELECT COUNT(*) FROM pg_largeobject_metadata");
+			PreparedStatement unlinkBlobs = conn.prepareStatement(
+					"WITH unlinked AS (SELECT lo_unlink(l.oid) "
+					+ "FROM pg_largeobject_metadata as l limit ?) "
+					+ "SELECT COUNT(*) FROM unlinked");
+			int numUnlinked = 0;
+			int totalUnlinked = 0;
+			ResultSet rs = blobCount.executeQuery();
+			if (rs.next()) {
+				LOG.info("Unlinking " + rs.getInt(1) + " old BLOBS...");
+			}
+			do {
+				// Delete all BLOBS from the database. We do this in batches to avoid
+				// an out of memory exception when there are thousands of BLOBS.
+				unlinkBlobs.setInt(1, BLOB_UNLINK_BATCH_SIZE);
+				rs = unlinkBlobs.executeQuery();
+				if (!rs.next()) {
+					throw new RuntimeException("No ResultSet returned");
+				}
+				numUnlinked = rs.getInt(1);
+				if (LOG.isDebugEnabled()) {
+					rs = blobCount.executeQuery();
+					if (rs.next()) {
+						LOG.debug("Unlinked " + numUnlinked + " BLOBS ("
+								+ rs.getInt(1) + " remaining)");
+					}
+				}
+				totalUnlinked += numUnlinked;
+				conn.commit();  // Commit the unlinks
+			} while (numUnlinked > 0);
+			rs.close();
+			blobCount.close();
+			unlinkBlobs.close();
+			LOG.info("Unlinked " + totalUnlinked + " old BLOBS");
+
+			// Truncate all tables that we insert into for the I/O stresser benchmarks.
 			Statement stmt = conn.createStatement();
-			for (String tableName : truncateTables) {
+			for (String tableName : ResourceStresserConstants.TABLENAMES_INSERTION) {
 				if (this.tableExists(conn, tableName)) {
 					stmt.execute("TRUNCATE " + tableName);
 				}
 			}
+			// Special case: the iointexponential table is initialized with whatever is
+			// stored in the iointstore table.
 			if (this.tableExists(conn, ResourceStresserConstants.TABLENAME_IOINTEXPONENTIAL)
 					&& this.tableExists(conn, ResourceStresserConstants.TABLENAME_IOINTSTORE)) {
 				stmt.execute("INSERT INTO " + ResourceStresserConstants.TABLENAME_IOINTEXPONENTIAL +
 						" SELECT * FROM " + ResourceStresserConstants.TABLENAME_IOINTSTORE);
-			}
-			if (this.tableExists(conn, ResourceStresserConstants.TABLENAME_IOBLOB)) {
-				stmt.executeQuery("SELECT truncate_if_exists_lo('" +
-						ResourceStresserConstants.TABLENAME_IOBLOB + "', 'val')");
 			}
 			stmt.close();
 			conn.commit();

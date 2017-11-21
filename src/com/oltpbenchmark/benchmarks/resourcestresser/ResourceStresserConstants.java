@@ -14,4 +14,11 @@ public class ResourceStresserConstants {
 
     public static final String TABLENAME_IOBLOB = "ioblob";
 
+	public static final String[] TABLENAMES_INSERTION = {
+		ResourceStresserConstants.TABLENAME_IOINTEXPONENTIAL,
+		ResourceStresserConstants.TABLENAME_IOINT,
+		ResourceStresserConstants.TABLENAME_IOBINARY,
+		ResourceStresserConstants.TABLENAME_IOBLOB
+	};
+
 }
