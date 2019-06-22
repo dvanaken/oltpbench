@@ -18,6 +18,7 @@
 package com.oltpbenchmark;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -41,6 +43,8 @@ import org.apache.commons.configuration.tree.xpath.XPathExpressionEngine;
 import org.apache.log4j.Logger;
 
 import com.oltpbenchmark.api.BenchmarkModule;
+import com.oltpbenchmark.api.collectors.DBParameterCollector;
+import com.oltpbenchmark.api.collectors.DBParameterCollectorGen;
 import com.oltpbenchmark.api.TransactionType;
 import com.oltpbenchmark.api.TransactionTypes;
 import com.oltpbenchmark.api.Worker;
@@ -60,6 +64,9 @@ public class DBWorkload {
     
     private static final String RATE_DISABLED = "disabled";
     private static final String RATE_UNLIMITED = "unlimited";
+
+    private static final String DEFAULT_RESULT_DIRECTORY = "results";
+    private static final String DEFAULT_RESULT_FILENAME = "oltpbench";
     
     /**
      * @param args
@@ -140,8 +147,8 @@ public class DBWorkload {
         options.addOption("s", "sample", true, "Sampling window");
         options.addOption("im", "interval-monitor", true, "Throughput Monitoring Interval in milliseconds");
         options.addOption("ss", false, "Verbose Sampling per Transaction");
-        options.addOption("o", "output", true, "Output file (default System.out)");
-        options.addOption("d", "directory", true, "Base directory for the result files, default is current directory");
+        options.addOption("o", "output", true, "Base filename for the result files (default is " + DEFAULT_RESULT_FILENAME + ")");
+        options.addOption("d", "directory", true, "Base directory for the result files (default is ./" + DEFAULT_RESULT_DIRECTORY + ")");
         options.addOption("t", "timestamp", false, "Each result file is prepended with a timestamp for the beginning of the experiment");
         options.addOption("ts", "tracescript", true, "Script of transactions to execute");
         options.addOption(null, "histograms", false, "Print txn histograms");
@@ -582,23 +589,22 @@ public class DBWorkload {
             } catch (Throwable ex) {
                 LOG.error("Unexpected error when running benchmarks.", ex);
                 System.exit(1);
-            }
+}
             assert(r != null);
 
-            // WRITE OUTPUT
-            writeOutputs(r, activeTXTypes, argsLine, xmlConfig);
-            
-            // WRITE HISTOGRAMS
+            // Write out results
+            writeOutputs(r, activeTXTypes, argsLine, benchList.get(0));
+
+            // Print histograms
             if (argsLine.hasOption("histograms")) {
                 writeHistograms(r);
             }
-
 
         } else {
             LOG.info("Skipping benchmark workload execution");
         }
     }
-    
+
     private static void writeHistograms(Results r) {
         StringBuilder sb = new StringBuilder();
         
@@ -632,148 +638,171 @@ public class DBWorkload {
         LOG.info(SINGLE_LINE);
     }
     
-        
     /**
      * Write out the results for a benchmark run to a bunch of files
      * @param r
      * @param activeTXTypes
      * @param argsLine
-     * @param xmlConfig
+     * @param wkldConfig
      * @throws Exception
      */
-    private static void writeOutputs(Results r, List<TransactionType> activeTXTypes, CommandLine argsLine, XMLConfiguration xmlConfig) throws Exception {
-        
-        // If an output directory is used, store the information
-        String outputDirectory = "results";
-        if (argsLine.hasOption("d")) {
-            outputDirectory = argsLine.getOptionValue("d");
-        }
-        String filePrefix = "";
-        if (argsLine.hasOption("t")) {
-            filePrefix = String.valueOf(TimeUtil.getCurrentTime().getTime()) + "_";
-        }
-        
-        // Special result uploader
-        ResultUploader ru = null;
-        if (xmlConfig.containsKey("uploadUrl")) {
-            ru = new ResultUploader(r, xmlConfig, argsLine);
-            LOG.info("Upload Results URL: " + ru);
-        }
-        
-        // Output target 
+    private static void writeOutputs(Results r, List<TransactionType> activeTXTypes, CommandLine argsLine,
+                                     BenchmarkModule bench) throws Exception {
+
+        // Determine whether to save or print results
+        boolean outputToFile;
         PrintStream ps = null;
-        PrintStream rs = null;
-        String baseFileName = "oltpbench";
-        if (argsLine.hasOption("o")) {
-            if (argsLine.getOptionValue("o").equals("-")) {
-                ps = System.out;
-                rs = System.out;
-                baseFileName = null;
-            } else {
-                baseFileName = argsLine.getOptionValue("o");
+        String baseFileName = argsLine.getOptionValue("o", DEFAULT_RESULT_FILENAME);
+
+        if (baseFileName.equals("-")) {
+            outputToFile = false;
+            ps = System.out;
+            baseFileName = null;
+            LOG.debug("Printing all requested results to stdout");
+
+        } else {
+            assert(baseFileName != null);
+            outputToFile = true;
+
+            String outputDirectory = argsLine.getOptionValue("d", DEFAULT_RESULT_DIRECTORY);
+            FileUtil.makeDirIfNotExists(outputDirectory.split("/"));
+
+            // Prepend all output files with a timestamp
+            String filePrefix = "";
+            if (argsLine.hasOption("t")) {
+                filePrefix = String.valueOf(TimeUtil.getCurrentTime().getTime()) + "_";
             }
+            baseFileName = FileUtil.joinPath(outputDirectory, filePrefix + baseFileName);
+            LOG.debug("Saving all requested results to directory: " + outputDirectory);
         }
 
-        // Build the complex path
-        String baseFile = filePrefix;
-        String nextName;
-        
-        if (baseFileName != null) {
-            // Check if directory needs to be created
-            if (outputDirectory.length() > 0) {
-                FileUtil.makeDirIfNotExists(outputDirectory.split("/"));
+        String nextName = null;
+        Map<String, String> resultFiles = new HashMap<String, String>();
+
+        if (isBooleanOptionSet(argsLine, "output-raw")) {
+            // Raw performance results from all transactions
+            if (outputToFile) {
+                nextName = FileUtil.getNextFilename(baseFileName + ".csv.gz");
+                ps = new PrintStream(new GZIPOutputStream(new FileOutputStream(nextName)));
+                resultFiles.put("csv", nextName);
+                LOG.info("Saving raw performance data to: " + nextName);
             }
-            
-            baseFile = filePrefix + baseFileName;
-
-            if (argsLine.getOptionValue("output-raw", "true").equalsIgnoreCase("true")) {
-                // RAW OUTPUT
-                nextName = FileUtil.getNextFilename(FileUtil.joinPath(outputDirectory, baseFile + ".csv"));
-                rs = new PrintStream(new File(nextName));
-                LOG.info("Output Raw data into file: " + nextName);
-                r.writeAllCSVAbsoluteTiming(activeTXTypes, rs);
-                rs.close();
-            }
-
-            if (isBooleanOptionSet(argsLine, "output-samples")) {
-                // Write samples using 1 second window
-                nextName = FileUtil.getNextFilename(FileUtil.joinPath(outputDirectory, baseFile + ".samples"));
-                rs = new PrintStream(new File(nextName));
-                LOG.info("Output samples into file: " + nextName);
-                r.writeCSV2(rs);
-                rs.close();
-            }
-
-            // Result Uploader Files
-            if (ru != null) {
-                // Summary Data
-                nextName = FileUtil.getNextFilename(FileUtil.joinPath(outputDirectory, baseFile + ".summary"));
-                PrintStream ss = new PrintStream(new File(nextName));
-                LOG.info("Output summary data into file: " + nextName);
-                ru.writeSummary(ss);
-                ss.close();
-
-                // DBMS Parameters
-                nextName = FileUtil.getNextFilename(FileUtil.joinPath(outputDirectory, baseFile + ".params"));
-                ss = new PrintStream(new File(nextName));
-                LOG.info("Output DBMS parameters into file: " + nextName);
-                ru.writeDBParameters(ss);
-                ss.close();
-
-                // DBMS Metrics
-                nextName = FileUtil.getNextFilename(FileUtil.joinPath(outputDirectory, baseFile + ".metrics"));
-                ss = new PrintStream(new File(nextName));
-                LOG.info("Output DBMS metrics into file: " + nextName);
-                ru.writeDBMetrics(ss);
-                ss.close();
-
-                // Experiment Configuration
-                nextName = FileUtil.getNextFilename(FileUtil.joinPath(outputDirectory, baseFile + ".expconfig"));
-                ss = new PrintStream(new File(nextName));
-                LOG.info("Output experiment config into file: " + nextName);
-                ru.writeBenchmarkConf(ss);
-                ss.close();
-            }
-            
-        } else if (LOG.isDebugEnabled()) {
-            LOG.debug("No output file specified");
+            r.writeAllCSVAbsoluteTiming(activeTXTypes, ps);
+            if (outputToFile) ps.close();
         }
-        
-        if (isBooleanOptionSet(argsLine, "upload") && ru != null) {
-            ru.uploadResult(activeTXTypes);
+
+        if (isBooleanOptionSet(argsLine, "output-samples")) {
+            // Write samples using 1 second window -- TODO
+            if (outputToFile) {
+                nextName = FileUtil.getNextFilename(baseFileName + ".samples");
+                ps = new PrintStream(new File(nextName));
+                resultFiles.put("samples", nextName);
+                LOG.info("Saving txn samples to: " + nextName);
+            }
+            r.writeCSV2(ps);
+            if (outputToFile) ps.close();
         }
-        
-        // SUMMARY FILE
+
+        if (isBooleanOptionSet(argsLine, "output-bench-config")) {
+            // Benchmark Configuration
+            if (outputToFile) {
+                nextName = FileUtil.getNextFilename(baseFileName + ".expconfig");
+                ps = new PrintStream(new File(nextName));
+                resultFiles.put("expconfig", nextName);
+                LOG.info("Saving benchmark configuration to: " + nextName);
+            }
+            ResultUploader.writeBenchmarkConf(
+                bench.getWorkloadConfiguration().getXmlConfig(), ps);
+            if (outputToFile) ps.close();
+        }
+
+        DBParameterCollector dbCollector = null;
+
+        if (isBooleanOptionSet(argsLine, "output-summary")) {
+            // Summary of workload and performance data
+            if (outputToFile) {
+                nextName = FileUtil.getNextFilename(baseFileName + ".summary");
+                ps = new PrintStream(new File(nextName));
+                resultFiles.put("summary", nextName);
+                LOG.info("Saving benchmark summary to: " + nextName);
+            }
+            ResultUploader.writeSummary(bench, r, ps);
+            if (outputToFile) ps.close();
+        }
+
+        if (isBooleanOptionSet(argsLine, "output-dbms-knobs")) {
+            // DBMS configuration settings
+            if (outputToFile) {
+                nextName = FileUtil.getNextFilename(baseFileName + ".params");
+                ps = new PrintStream(new File(nextName));
+                resultFiles.put("params", nextName);
+                LOG.info("Saving DBMS configuration knobs to: " + nextName);
+            }
+            if (dbCollector == null) dbCollector = bench.createDBCollector();
+            ps.println(dbCollector.collectParameters());
+            if (outputToFile) ps.close();
+        }
+
+        if (isBooleanOptionSet(argsLine, "output-dbms-metrics")) {
+            // DBMS runtime metrics
+            if (outputToFile) {
+                nextName = FileUtil.getNextFilename(baseFileName + ".metrics");
+                ps = new PrintStream(new File(nextName));
+                resultFiles.put("metrics", nextName);
+                LOG.info("Saving DBMS metrics to: " + nextName);
+            }
+            if (dbCollector == null) dbCollector = bench.createDBCollector();
+    	    ps.println(dbCollector.collectMetrics());
+            if (outputToFile) ps.close();
+        }
+
         if (argsLine.hasOption("s")) {
-            nextName = FileUtil.getNextFilename(FileUtil.joinPath(outputDirectory, baseFile + ".res"));
-            ps = new PrintStream(new File(nextName));
-            LOG.info("Output throughput samples into file: " + nextName);
-            
+            if (outputToFile) {
+                // Sampled transactions
+                nextName = FileUtil.getNextFilename(baseFileName + ".res");
+                ps = new PrintStream(new File(nextName));
+                resultFiles.put("res", nextName);
+                LOG.info("Saving txn samples to: " + nextName);
+            }
             int windowSize = Integer.parseInt(argsLine.getOptionValue("s"));
             LOG.info("Grouped into Buckets of " + windowSize + " seconds");
             r.writeCSV(windowSize, ps);
+            if (outputToFile) ps.close();
 
-            // Allow more detailed reporting by transaction to make it easier to check
+            // More detailed reporting by transaction type to make
             if (argsLine.hasOption("ss")) {
-                
+                String txnFileName;
                 for (TransactionType t : activeTXTypes) {
-                    PrintStream ts = ps;
-                    if (ts != System.out) {
-                        // Get the actual filename for the output
-                        baseFile = filePrefix + baseFileName + "_" + t.getName();
-                        nextName = FileUtil.getNextFilename(FileUtil.joinPath(outputDirectory, baseFile + ".res"));                            
-                        ts = new PrintStream(new File(nextName));
-                        r.writeCSV(windowSize, ts, t);
-                        ts.close();
+                    if (outputToFile) {
+                        txnFileName = baseFileName + "_" + t.getName() + ".res";
+                        nextName = FileUtil.getNextFilename(txnFileName);
+                        ps = new PrintStream(new File(nextName));
                     }
+                    r.writeCSV(windowSize, ps, t);
+                    if (outputToFile) ps.close();
                 }
             }
-        } else if (LOG.isDebugEnabled()) {
-            LOG.warn("No bucket size specified");
         }
-        
+
+        XMLConfiguration xmlConfig = bench.getWorkloadConfiguration().getXmlConfig();
+        if (isBooleanOptionSet(argsLine, "upload")) {
+
+            // Upload results
+            String uploadUrl = xmlConfig.getString("uploadUrl");
+            String uploadCode = xmlConfig.getString("uploadCode");
+            LOG.debug("uploadCode: " + uploadCode + ", uploadUrl: " + uploadUrl);
+
+            if (uploadUrl == null || uploadCode == null) {
+                LOG.warn(String.format("The upload URL/CODE cannot be null. URL: %s, CODE: %s",
+                    uploadUrl, uploadCode));
+            } else {
+                String uploadHash = argsLine.getOptionValue("uploadHash", "");
+                ResultUploader ru = new ResultUploader(uploadCode, uploadUrl, uploadHash, r, bench);
+                ru.uploadResult(activeTXTypes, resultFiles);
+            }
+        }
+
         if (ps != null) ps.close();
-        if (rs != null) rs.close();
     }
 
     /* buggy piece of shit of Java XPath implementation made me do it 
