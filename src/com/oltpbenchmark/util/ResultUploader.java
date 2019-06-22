@@ -17,6 +17,8 @@
 package com.oltpbenchmark.util;
 
 import com.oltpbenchmark.Results;
+import com.oltpbenchmark.api.BenchmarkModule;;
+import com.oltpbenchmark.WorkloadConfiguration;
 import com.oltpbenchmark.api.TransactionType;
 import com.oltpbenchmark.api.collectors.DBParameterCollector;
 import com.oltpbenchmark.api.collectors.DBParameterCollectorGen;
@@ -36,6 +38,9 @@ import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
 
 import java.io.*;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +51,7 @@ import java.util.zip.GZIPOutputStream;
 public class ResultUploader {
     private static final Logger LOG = Logger.getLogger(ResultUploader.class);
 
-    private static String[] IGNORE_CONF = {
+    private static final String[] IGNORE_CONF = {
             "dbtype",
             "driver",
             "DBUrl",
@@ -56,125 +61,151 @@ public class ResultUploader {
             "uploadUrl"
     };
 
-    private static String[] BENCHMARK_KEY_FIELD = {
-            "isolation",
-            "scalefactor",
-            "terminals"
-    };
+    private Results results;
+    private BenchmarkModule bench;
 
-    XMLConfiguration expConf;
-    Results results;
-    CommandLine argsLine;
-    DBParameterCollector collector;
+    private String uploadCode;
+    private String uploadUrl;
+    private String uploadHash;
 
-    String dbUrl, dbType;
-    String username, password;
-    String benchType;
-//    int windowSize;
-    String uploadCode, uploadUrl;
-    String uploadHash;
+    public ResultUploader(String uploadCode, String uploadUrl, String uploadHash,
+                          Results results, BenchmarkModule bench) {
 
-    public ResultUploader(Results r, XMLConfiguration conf, CommandLine argsLine) {
-        this.expConf = conf;
-        this.results = r;
-        this.argsLine = argsLine;
-
-        dbUrl = expConf.getString("DBUrl");
-        dbType = expConf.getString("dbtype");
-        username = expConf.getString("username");
-        password = expConf.getString("password");
-        benchType = argsLine.getOptionValue("b");
-//        windowSize = 1;
-//        if (argsLine.hasOption("s")) {
-//        	windowSize = Integer.parseInt(argsLine.getOptionValue("s"));
-//        } else {
-//        	windowSize = 1;
-//        }
-        uploadCode = expConf.getString("uploadCode");
-        uploadUrl = expConf.getString("uploadUrl");
-        uploadHash = argsLine.getOptionValue("uploadHash");
-        uploadHash = uploadHash == null ? "" : uploadHash;
-
-        this.collector = DBParameterCollectorGen.getCollector(dbType, dbUrl, username, password);
-        assert(this.collector != null);
+        this.uploadCode = uploadCode;
+        this.uploadUrl = uploadUrl;
+        this.uploadHash = uploadHash;
+        this.results = results;
+        this.bench = bench;
     }
     
-    public DBParameterCollector getConfCollector() {
-        return (this.collector);
-    }
-
-    public void writeDBParameters(PrintStream os) {
-        String dbConf = collector.collectParameters();
-        os.print(dbConf);
-    }
-    
-    public void writeDBMetrics(PrintStream os) {
-    	os.print(collector.collectMetrics());
+    public static void writeBenchmarkConf(XMLConfiguration benchConf, PrintStream os) throws ConfigurationException {
+        XMLConfiguration copy = (XMLConfiguration) benchConf.clone();
+        for (String key: IGNORE_CONF) {
+            copy.clearProperty(key);
+        }
+        copy.save(os);
     }
 
     public void writeBenchmarkConf(PrintStream os) throws ConfigurationException {
-        XMLConfiguration outputConf = (XMLConfiguration) expConf.clone();
-        for (String key: IGNORE_CONF) {
-            outputConf.clearProperty(key);
+        writeBenchmarkConf(this.bench.getWorkloadConfiguration().getXmlConfig(), os);
+    }
+
+    public static String getDBVersion(BenchmarkModule bench) {
+        Connection conn;
+        DatabaseMetaData meta;
+        int majorVersion = 0;
+        int minorVersion = 0;
+        String version;
+        try {
+            conn = bench.makeConnection();
+            meta = conn.getMetaData();
+            majorVersion = meta.getDatabaseMajorVersion();
+            majorVersion = meta.getDatabaseMinorVersion();
+            version = String.format("%s.%s", majorVersion, minorVersion);
+        } catch (SQLException ex) {
+            version = null;
         }
-        outputConf.save(os);
+        return version;
+    }
+
+    public static void writeSummary(BenchmarkModule benchMod, Results res, PrintStream os) {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        Date now = new Date();
+        String benchType = benchMod.getBenchmarkName();
+        WorkloadConfiguration wkldConfig = benchMod.getWorkloadConfiguration();
+
+        Map<String, Object> summary = new TreeMap<String, Object>();
+        summary.put("Current Timestamp (milliseconds)", now.getTime());
+        summary.put("DBMS Type", wkldConfig.getDBType());
+        summary.put("DBMS Version", getDBVersion(benchMod));
+        summary.put("Benchmark Type", benchMod.getBenchmarkName());
+        summary.put("Latency Distribution", res.latencyDistribution.toMap());
+        summary.put("Throughput (requests/second)", res.getRequestsPerSecond());
+        summary.put("Runtime (seconds)", res.getRuntimeSeconds());
+        summary.put("isolation", wkldConfig.getIsolationString());
+        summary.put("scalefactor", wkldConfig.getScaleFactor());
+        summary.put("terminals", wkldConfig.getTerminals());
+        os.println(JSONUtil.format(JSONUtil.toJSONString(summary)));
     }
 
     public void writeSummary(PrintStream os) {
-    	Map<String, Object> summaryMap = new TreeMap<String, Object>();
-        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
-        Date now = new Date();
-        summaryMap.put("Current Timestamp (milliseconds)", now.getTime());
-        summaryMap.put("DBMS Type", dbType);
-        summaryMap.put("DBMS Version", collector.collectVersion());
-        summaryMap.put("Benchmark Type", benchType);
-        summaryMap.put("Latency Distribution", results.latencyDistribution.toMap());
-        summaryMap.put("Throughput (requests/second)", results.getRequestsPerSecond());
-        for (String field: BENCHMARK_KEY_FIELD) {
-        	summaryMap.put(field, expConf.getString(field));
-        }
-        os.println(JSONUtil.format(JSONUtil.toJSONString(summaryMap)));
+        writeSummary(this.bench, this.results, os);
     }
 
-    public void uploadResult(List<TransactionType> activeTXTypes) throws ParseException {
+    public void uploadResult(List<TransactionType> activeTXTypes, Map<String, String> resultFiles) throws ParseException {
         try {
-            File expConfigFile = File.createTempFile("expconfig", ".tmp");
-            File samplesFile = File.createTempFile("samples", ".tmp");
-            File summaryFile = File.createTempFile("summary", ".tmp");
-            File paramsFile = File.createTempFile("params", ".tmp");
-            File metricsFile = File.createTempFile("metrics", ".tmp");
-            File csvDataFile = File.createTempFile("csv", ".gz");
+            File expConfigFile;
+            File samplesFile;
+            File summaryFile;
+            File paramsFile ;
+            File metricsFile;
+            File csvDataFile;
 
-            PrintStream confOut = new PrintStream(new FileOutputStream(expConfigFile));
-            writeBenchmarkConf(confOut);
-            confOut.close();
+            DBParameterCollector collector = null;
+            PrintStream confOut;
 
-            confOut = new PrintStream(new FileOutputStream(paramsFile));
-            writeDBParameters(confOut);
-            confOut.close();
+            if (resultFiles.containsKey("expconfig")) {
+                expConfigFile = new File(resultFiles.get("expconfig"));
+            } else {
+                expConfigFile = File.createTempFile("expconfig", ".tmp");
+                confOut = new PrintStream(new FileOutputStream(expConfigFile));
+                writeBenchmarkConf(confOut);
+                confOut.close();
+            }
 
-            confOut = new PrintStream(new FileOutputStream(metricsFile));
-            writeDBMetrics(confOut);
-            confOut.close();
+            if (resultFiles.containsKey("samples")) {
+                samplesFile = new File(resultFiles.get("samples"));
+            } else {
+                samplesFile = File.createTempFile("samples", ".tmp");
+                confOut = new PrintStream(new FileOutputStream(samplesFile));
+                results.writeCSV2(confOut);
+                confOut.close();
+            }
 
-            confOut = new PrintStream(new FileOutputStream(samplesFile));
-            results.writeCSV2(confOut);
-            confOut.close();
+            if (resultFiles.containsKey("summary")) {
+                summaryFile = new File(resultFiles.get("summary"));
+            } else {
+                summaryFile = File.createTempFile("summary", ".tmp");
+                confOut = new PrintStream(new FileOutputStream(summaryFile));
+                writeSummary(confOut);
+                confOut.close();
+            }
 
-            confOut = new PrintStream(new FileOutputStream(summaryFile));
-            writeSummary(confOut);
-            confOut.close();
+            if (resultFiles.containsKey("params")) {
+                paramsFile = new File(resultFiles.get("params"));
+            } else {
+                paramsFile = File.createTempFile("params", ".tmp");
+                confOut = new PrintStream(new FileOutputStream(paramsFile));
+                if (collector == null) collector = this.bench.createDBCollector();
+                confOut.println(collector.collectParameters());
+                confOut.close();
+            }
 
-            confOut = new PrintStream(new GZIPOutputStream(new FileOutputStream(csvDataFile)));
-            results.writeAllCSVAbsoluteTiming(activeTXTypes, confOut);
-            confOut.close();
+            if (resultFiles.containsKey("metrics")) {
+                metricsFile = new File(resultFiles.get("metrics"));
+            } else {
+                metricsFile = File.createTempFile("metrics", ".tmp");
+                confOut = new PrintStream(new FileOutputStream(metricsFile));
+                if (collector == null) collector = this.bench.createDBCollector();
+    	        confOut.println(collector.collectMetrics());
+                confOut.close();
+            }
+
+            if (resultFiles.containsKey("csv")) {
+                csvDataFile = new File(resultFiles.get("csv") + ".gz");
+            } else {
+                csvDataFile = File.createTempFile("csv", ".gz");
+                confOut = new PrintStream(new GZIPOutputStream(new FileOutputStream(csvDataFile)));
+                results.writeAllCSVAbsoluteTiming(activeTXTypes, confOut);
+                confOut.close();
+            }
 
             CloseableHttpClient httpclient = HttpClients.createDefault();
-            HttpPost httppost = new HttpPost(uploadUrl);
+            HttpPost httppost = new HttpPost(this.uploadUrl);
 
             HttpEntity reqEntity = MultipartEntityBuilder.create()
-                    .addTextBody("upload_code", uploadCode)
-                    .addTextBody("upload_hash", uploadHash)
+                    .addTextBody("upload_code", this.uploadCode)
+                    .addTextBody("upload_hash", this.uploadHash)
                     .addPart("sample_data", new FileBody(samplesFile))
                     .addPart("raw_data", new FileBody(csvDataFile))
                     .addPart("db_parameters_data", new FileBody(paramsFile))

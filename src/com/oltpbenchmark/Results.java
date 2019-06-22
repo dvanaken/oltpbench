@@ -77,7 +77,11 @@ public final class Results {
     }
 
     public double getRequestsPerSecond() {
-        return (double) measuredRequests / (double) nanoSeconds * 1e9;
+        return (double) measuredRequests / getRuntimeSeconds();
+    }
+
+    public double getRuntimeSeconds() {
+        return (double) nanoSeconds * 1e9;
     }
 
     @Override
@@ -183,5 +187,6 @@ public final class Results {
             out.println(StringUtil.join(",", row));
         }
     }
+
 
 }
