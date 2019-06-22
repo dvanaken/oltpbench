@@ -16,18 +16,38 @@
 
 package com.oltpbenchmark.api.collectors;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+import com.oltpbenchmark.catalog.Catalog;
+import com.oltpbenchmark.types.DatabaseType;
+
 public class DBParameterCollectorGen {
-    public static DBParameterCollector getCollector(String dbType, String dbUrl, String username, String password) {
-        String db = dbType.toLowerCase();
-        if (db.equals("mysql") || db.equals("memsql")) {
-            return new MySQLCollector(dbUrl, username, password);
-        } else if (db.equals("myrocks")) {
-            return new MyRocksCollector(dbUrl, username, password);
-	}
-	else if (db.equals("postgres")) {
-            return new PostgresCollector(dbUrl, username, password);
+
+    public static DBParameterCollector getCollector(DatabaseType dbType, String dbUrl,
+                                                    String username, String password) throws SQLException {
+        Connection conn = DriverManager.getConnection(dbUrl, username, password);
+        Catalog.setSeparator(conn);
+        return getCollector(dbType, conn);
+    }
+
+    public static DBParameterCollector getCollector(DatabaseType dbType, Connection conn) {
+        DBParameterCollector collector;
+
+        if (dbType == DatabaseType.MYSQL || dbType == DatabaseType.MEMSQL) {
+            collector = new MySQLCollector(conn);
+
+        } else if (dbType == DatabaseType.MYROCKS) {
+            collector = new MyRocksCollector(conn);
+
+	    } else if (dbType == DatabaseType.POSTGRES) {
+            collector = new PostgresCollector(conn);
+
         } else {
-            return new DBCollector();
+            collector = new DBCollector();
+
         }
+        return collector;
     }
 }

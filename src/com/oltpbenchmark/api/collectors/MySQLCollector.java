@@ -35,10 +35,8 @@ public class MySQLCollector extends DBCollector {
 
     private static final String METRICS_SQL = "SHOW STATUS";
 
-    public MySQLCollector(String oriDBUrl, String username, String password) {
+    public MySQLCollector(Connection conn) {
         try {
-            Connection conn = DriverManager.getConnection(oriDBUrl, username, password);
-            Catalog.setSeparator(conn);
             Statement s = conn.createStatement();
 
             // Collect DBMS version

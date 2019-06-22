@@ -52,13 +52,11 @@ public class MyRocksCollector extends DBCollector {
  
     private static final String INDEX_STATS = "SELECT *  FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = ";
 
-    public MyRocksCollector(String oriDBUrl, String username, String password) {
+    public MyRocksCollector(Connection conn) {
 
         myroMetrics = new HashMap<String, List<Map<String, String>>>();
 
         try {
-            Connection conn = DriverManager.getConnection(oriDBUrl, username, password);
-            Catalog.setSeparator(conn);
             Statement s = conn.createStatement();
          
             // Collect DBMS version

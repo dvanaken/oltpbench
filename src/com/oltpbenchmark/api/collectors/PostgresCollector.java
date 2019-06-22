@@ -45,11 +45,10 @@ public class PostgresCollector extends DBCollector {
 
     private final Map<String, List<Map<String, String>>> pgMetrics;
 
-    public PostgresCollector(String oriDBUrl, String username, String password) {
+    public PostgresCollector(Connection conn) {
     	pgMetrics = new HashMap<String, List<Map<String, String>>>();
+
         try {
-            Connection conn = DriverManager.getConnection(oriDBUrl, username, password);
-            Catalog.setSeparator(conn);
             Statement s = conn.createStatement();
 
             // Collect DBMS version

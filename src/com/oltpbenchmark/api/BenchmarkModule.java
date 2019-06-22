@@ -35,6 +35,8 @@ import org.apache.log4j.Logger;
 
 import com.oltpbenchmark.WorkloadConfiguration;
 import com.oltpbenchmark.api.Loader.LoaderThread;
+import com.oltpbenchmark.api.collectors.DBParameterCollector;
+import com.oltpbenchmark.api.collectors.DBParameterCollectorGen;
 import com.oltpbenchmark.catalog.Catalog;
 import com.oltpbenchmark.catalog.Table;
 import com.oltpbenchmark.types.DatabaseType;
@@ -338,6 +340,20 @@ public abstract class BenchmarkModule {
         } catch (SQLException ex) {
             throw new RuntimeException(String.format("Unexpected error when trying to delete the %s database", this.benchmarkName), ex);
         }
+    }
+
+    public final DBParameterCollector createDBCollector() {
+        DBParameterCollector collector = null;
+
+        try {
+            collector = DBParameterCollectorGen.getCollector(
+                this.workConf.getDBType(),
+                this.makeConnection());
+        } catch (SQLException ex) {
+            throw new RuntimeException("Unexpected error while creating the DB collector");
+        }
+        assert(collector != null);
+        return collector;
     }
 
     // --------------------------------------------------------------------------
